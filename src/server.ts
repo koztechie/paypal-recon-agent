@@ -37,7 +37,9 @@ const server = createServer((req, res) => {
 					"logs/webhooks.ndjson",
 					`${JSON.stringify({ received_at: new Date().toISOString(), ...parsed, raw_len: raw.length })}\n`,
 				);
-				console.log(`[webhook] ${parsed.event_type ?? "unknown"} (${parsed.id ?? "no-id"})`);
+				console.log(
+					`[webhook] ${parsed.event_type ?? "unknown"} (${parsed.id ?? "no-id"})`,
+				);
 				res.writeHead(200, { "Content-Type": "application/json" });
 				res.end(JSON.stringify({ received: true }));
 			} catch {
