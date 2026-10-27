@@ -1,0 +1,22 @@
+# Secrets — NEVER commit
+.env
+.env.local
+.env.*.local
+
+# Dependencies / build
+node_modules/
+dist/
+build/
+
+# Local database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs & OS
+*.log
+.DS_Store
+Thumbs.db
+
+# Render / misc
+.render/
