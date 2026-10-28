@@ -28,7 +28,7 @@ export function isDryRun(): boolean {
 	return (process.env.DRY_RUN ?? "false").toLowerCase() === "true";
 }
 
-function simulateResult(method: string, args: unknown): string {
+function simulateResult(method: string): string {
 	const id = `DRY-${Date.now().toString(36).toUpperCase()}`;
 	if (method === "create_invoice" || method === "create_order") {
 		return JSON.stringify({
@@ -70,7 +70,7 @@ export function withDryRun(tools: ToolkitTools): ToolkitTools {
 				console.log(`[dry-run] BLOCKED ${name} -> simulated`);
 				void originalExecute; // never called
 				void opts;
-				return simulateResult(name, args);
+				return simulateResult(name);
 			},
 		};
 	}
