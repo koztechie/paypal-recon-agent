@@ -70,3 +70,24 @@ body {
 .ag-row.row-detail-selected {
   background: var(--pp-highlight);
 }
+
+/* AG Grid: reconciliation status colours (stage 83). */
+.pp-st-matched {
+  color: var(--pp-success);
+  font-weight: 600;
+}
+
+.pp-st-review {
+  color: var(--pp-warning);
+  font-weight: 600;
+}
+
+.pp-st-unmatched {
+  color: var(--pp-danger);
+  font-weight: 600;
+}
+
+.pp-st-pending {
+  color: var(--pp-muted);
+  font-weight: 600;
+}

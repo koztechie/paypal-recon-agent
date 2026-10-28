@@ -36,7 +36,7 @@ export default async function ReconciliationLedgerPage() {
         { field: 'kind', headerName: 'Type' },
         { field: 'ref', headerName: 'Reference' },
         { field: 'status', headerName: 'Status' },
-        { field: 'recon', headerName: 'Reconciliation' },
+        { field: 'recon', headerName: 'Reconciliation', type: 'reconStatus' },
         { field: 'amount', headerName: 'Amount' },
         { field: 'variance', headerName: 'Variance' },
         { field: 'currency', headerName: 'Currency' },

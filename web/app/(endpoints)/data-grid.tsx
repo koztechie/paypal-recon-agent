@@ -9,6 +9,7 @@
 
 import { Fragment, useEffect, useRef, useState } from 'react';
 import {
+  CellStyleModule,
   ClientSideRowModelModule,
   ColumnAutoSizeModule,
   DateFilterModule,
@@ -32,9 +33,10 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // Only the grid features these pages use: in-memory rows, filters for each column type, the
-// search box (quick filter), sizing columns to their content, and the row API + row classes
-// (detail panel highlight).
+// search box (quick filter), sizing columns to their content, the row API + row classes
+// (detail panel highlight) and cell classes (status colours).
 const modules = [
+  CellStyleModule,
   ClientSideRowModelModule,
   TextFilterModule,
   NumberFilterModule,
@@ -64,8 +66,22 @@ const formatMoney = ({ value, data }: ValueFormatterParams<Row>) =>
     ? value.toLocaleString('en-US', { style: 'currency', currency: data.currency })
     : '';
 
+// Reconciliation statuses colour their cell (stage 83). Pages opt in with `type: 'reconStatus'`;
+// the colours live in globals.css so the grid and the detail panel share the palette.
+const reconStatusClasses: Record<string, string> = {
+  MATCHED: 'pp-st-matched',
+  UNMATCHED: 'pp-st-unmatched',
+  REVIEW: 'pp-st-review',
+  PENDING: 'pp-st-pending',
+};
+
 const columnTypes: ColTypeDefs<Row> = {
   money: { valueFormatter: formatMoney, filter: 'agNumberColumnFilter' },
+  reconStatus: {
+    filter: 'agTextColumnFilter',
+    cellClass: (p) =>
+      typeof p.value === 'string' ? (reconStatusClasses[p.value] ?? '') : '',
+  },
 };
 
 const defaultColDef: ColDef<Row> = { filter: true, sortable: true };
