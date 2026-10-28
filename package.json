@@ -29,7 +29,8 @@
     "stage54": "node --env-file=.env.local scripts/stage54.ts",
     "stage55": "node --env-file=.env.local scripts/stage55.ts",
     "stage56": "node --env-file=.env.local scripts/stage56.ts",
-    "stage59": "node --env-file=.env.local scripts/stage59.ts"
+    "stage59": "node --env-file=.env.local scripts/stage59.ts",
+    "stage60": "node --env-file=.env.local scripts/stage60.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.6.3",
