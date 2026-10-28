@@ -3,6 +3,7 @@
  * All calls go through the guardrail whitelist in src/paypal.ts.
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { logAgentAction, markAgentActionExecuted } from "./auditlog.ts";
 import type { ToolkitTools } from "./paypal.ts";
 
 export interface DraftInvoiceInput {
@@ -30,6 +31,14 @@ export async function createDraftInvoice(
 			execute: (a: unknown, o: unknown) => Promise<unknown>;
 		}
 	).execute;
+
+	logAgentAction({
+		action: "create_invoice",
+		limitCheck: "PASS",
+		targetRef: input.itemName,
+		executed: false,
+		llmDecision: "direct-call:createDraftInvoice",
+	});
 
 	const result = await execute(
 		{
@@ -81,6 +90,7 @@ export async function createDraftInvoice(
 		{ invoice_id: invoiceId },
 		{ toolCallId: "get-created-invoice", messages: [] },
 	);
+	markAgentActionExecuted("create_invoice", input.itemName);
 	return (typeof full === "string" ? JSON.parse(full) : full) as InvoiceResult;
 }
 
@@ -94,6 +104,14 @@ export async function sendInvoice(
 			execute: (a: unknown, o: unknown) => Promise<unknown>;
 		}
 	).execute;
+
+	logAgentAction({
+		action: "send_invoice",
+		limitCheck: "PASS",
+		targetRef: invoiceId,
+		executed: false,
+		llmDecision: "direct-call:sendInvoice",
+	});
 
 	const result = await execute(
 		{
@@ -111,6 +129,7 @@ export async function sendInvoice(
 	if ("error" in (parsed as Record<string, unknown>)) {
 		throw new Error(`PayPal tool error: ${JSON.stringify(parsed)}`);
 	}
+	markAgentActionExecuted("send_invoice", invoiceId);
 	return parsed;
 }
 
@@ -181,6 +200,13 @@ export async function recordExternalPayment(
 			execute: (a: unknown, o: unknown) => Promise<unknown>;
 		}
 	).execute;
+	logAgentAction({
+		action: "record_payment_for_invoice",
+		limitCheck: "PASS",
+		targetRef: invoiceId,
+		executed: false,
+		llmDecision: "direct-call:recordExternalPayment",
+	});
 	const result = await execute(
 		{
 			invoice_id: invoiceId,
@@ -191,6 +217,7 @@ export async function recordExternalPayment(
 		},
 		{ toolCallId: "record-external-payment", messages: [] },
 	);
+	markAgentActionExecuted("record_payment_for_invoice", invoiceId);
 	return parseToolResult(result);
 }
 
@@ -201,6 +228,13 @@ export async function sendInvoiceReminder(
 ): Promise<InvoiceResult> {
 	const gate = checkReminderAllowed(invoiceId);
 	if (!gate.allowed) {
+		logAgentAction({
+			action: "send_invoice_reminder",
+			limitCheck: "BLOCKED",
+			targetRef: invoiceId,
+			executed: false,
+			llmDecision: gate.reason,
+		});
 		throw new Error(gate.reason);
 	}
 
@@ -209,6 +243,13 @@ export async function sendInvoiceReminder(
 			execute: (a: unknown, o: unknown) => Promise<unknown>;
 		}
 	).execute;
+	logAgentAction({
+		action: "send_invoice_reminder",
+		limitCheck: "PASS",
+		targetRef: invoiceId,
+		executed: false,
+		llmDecision: "direct-call:sendInvoiceReminder",
+	});
 	const result = await execute(
 		{ invoice_id: invoiceId, ...(note ? { note } : {}) },
 		{ toolCallId: "send-reminder", messages: [] },
@@ -227,5 +268,6 @@ export async function sendInvoiceReminder(
 	if ("error" in (parsed as Record<string, unknown>)) {
 		throw new Error(`PayPal tool error: ${JSON.stringify(parsed)}`);
 	}
+	markAgentActionExecuted("send_invoice_reminder", invoiceId);
 	return parsed;
 }
