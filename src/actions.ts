@@ -93,3 +93,50 @@ export async function classifyIncomingPayment(
 		ms: r.ms,
 	};
 }
+
+// --- Action #2 (stage 63): LLM explanation for a reconciliation outcome ------
+
+const EXPLAIN_SYSTEM = [
+	"You explain ONE reconciliation outcome to a small-merchant PayPal user.",
+	"Input is JSON: {payment:{amountMinor,currency,invoiceNumber?},",
+	"invoice:{invoiceNumber?,totalMinor?,currency?,status?}|null,",
+	"outcome:{status:MATCHED|REVIEW|UNMATCHED,matchMethod?,varianceMinor,reason}}",
+	"(amounts are MINOR units: 5225 = 52.25).",
+	"Write 1-3 short plain-English sentences: what happened, the exact numbers,",
+	"and what the merchant should do next (nothing if none is needed).",
+	"No markdown, no headings, no JSON in the reply. Be concrete, never speculate.",
+].join("\n");
+
+export interface ReconciliationInput {
+	payment: IncomingPayment;
+	invoice: OpenInvoice | null;
+	outcome: {
+		status: "MATCHED" | "REVIEW" | "UNMATCHED";
+		matchMethod?: string | null;
+		varianceMinor: number;
+		reason?: string | null;
+	};
+}
+
+/** Generate a merchant-facing explanation; falls back to the rule reason. */
+export async function explainReconciliation(
+	input: ReconciliationInput,
+	fallbackReason: string,
+): Promise<{ text: string; via: "llm" | "fallback" }> {
+	try {
+		const r = await chat(EXPLAIN_SYSTEM, JSON.stringify(input), {
+			temperature: 0,
+			maxTokens: 160,
+		});
+		const text = r.text
+			.replace(/^```(?:json)?/m, "")
+			.replace(/```$/m, "")
+			.trim();
+		if (text.length < 20 || /[{}]/.test(text.slice(0, 10))) {
+			return { text: fallbackReason, via: "fallback" };
+		}
+		return { text, via: "llm" };
+	} catch {
+		return { text: fallbackReason, via: "fallback" };
+	}
+}
