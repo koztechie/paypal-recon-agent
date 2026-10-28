@@ -10,8 +10,11 @@ build/
 
 # Local database
 *.db
+*.db-shm
+*.db-wal
 *.sqlite
 *.sqlite3
+data/
 
 # Logs & OS
 *.log

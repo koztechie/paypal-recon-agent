@@ -5,6 +5,7 @@
  */
 import { appendFileSync, mkdirSync } from "node:fs";
 import { createServer } from "node:http";
+import { insertPaymentFromEvent, insertWebhookEvent } from "./db.ts";
 
 mkdirSync("logs", { recursive: true });
 
@@ -21,9 +22,9 @@ const server = createServer((req, res) => {
 		return;
 	}
 
-	// PayPal webhook listener (stages 37-38). Always 200 on parseable receipt:
-	// PayPal retries non-2xx. Raw payload stored as NDJSON (webhook_events
-	// table wiring comes at stages 44/49).
+	// PayPal webhook listener (stages 37-38, DB wiring stage 44). Always 200 on
+	// parseable receipt: PayPal retries non-2xx. Raw payload -> NDJSON log;
+	// every event -> webhook_events; PAYMENT.* -> payments row.
 	if (req.method === "POST" && url.split("?")[0] === "/webhook") {
 		let raw = "";
 		req.on("data", (chunk: Buffer) => {
@@ -40,6 +41,20 @@ const server = createServer((req, res) => {
 				console.log(
 					`[webhook] ${parsed.event_type ?? "unknown"} (${parsed.id ?? "no-id"})`,
 				);
+				try {
+					const full = JSON.parse(raw) as Parameters<
+						typeof insertWebhookEvent
+					>[0];
+					const dedupe = insertWebhookEvent(full, raw.length);
+					if (full.event_type?.startsWith("PAYMENT.")) {
+						const paymentId = insertPaymentFromEvent(full);
+						console.log(
+							`[webhook] payment row: ${paymentId ?? "none"} (${dedupe})`,
+						);
+					}
+				} catch (dbErr) {
+					console.error("[webhook] db error:", dbErr);
+				}
 				res.writeHead(200, { "Content-Type": "application/json" });
 				res.end(JSON.stringify({ received: true }));
 			} catch {
