@@ -4,6 +4,7 @@
 .env.*.local
 
 # Dependencies / build
+.next/
 node_modules/
 dist/
 build/
