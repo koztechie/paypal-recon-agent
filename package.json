@@ -30,7 +30,8 @@
     "stage55": "node --env-file=.env.local scripts/stage55.ts",
     "stage56": "node --env-file=.env.local scripts/stage56.ts",
     "stage59": "node --env-file=.env.local scripts/stage59.ts",
-    "stage60": "node --env-file=.env.local scripts/stage60.ts"
+    "stage60": "node --env-file=.env.local scripts/stage60.ts",
+    "stage61": "node --env-file=.env.local scripts/stage61.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.6.3",
@@ -38,6 +39,7 @@
     "typescript": "^5.7.0"
   },
   "dependencies": {
-    "@paypal/agent-toolkit": "^1.11.0"
+    "@paypal/agent-toolkit": "^1.11.0",
+    "zod-to-json-schema": "^3.25.2"
   }
 }

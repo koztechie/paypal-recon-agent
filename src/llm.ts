@@ -134,3 +134,41 @@ export async function chat(
 
 	return { text, provider, model, ms: Date.now() - t0 };
 }
+
+export interface RawChatResponse {
+	candidates?: Array<{
+		content?: { parts?: Array<Record<string, unknown>> };
+		finishReason?: string;
+	}>;
+}
+
+/**
+ * Low-level multi-turn call WITH native functionDeclarations (stage 61).
+ * Gemini only — other providers need an adapter (kept out of scope on purpose:
+ * ADR-004 primary provider is gemini).
+ */
+export async function chatRaw(
+	_user: string,
+	extra: { contents: unknown[]; functionDeclarations: unknown[] },
+): Promise<RawChatResponse> {
+	const { provider, model, key } = config();
+	if (provider !== "gemini") {
+		throw new Error(
+			`chatRaw: function calling implemented for gemini only (got ${provider})`,
+		);
+	}
+	return withRetry(
+		async () =>
+			(await postJson(
+				`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+				{ "x-goog-api-key": key },
+				{
+					contents: extra.contents,
+					tools: [{ functionDeclarations: extra.functionDeclarations }],
+					generationConfig: { temperature: 0, maxOutputTokens: 1024 },
+				},
+				45_000,
+			)) as RawChatResponse,
+		{ retries: 2, baseMs: 500, action: "llm_chat_raw" },
+	);
+}
