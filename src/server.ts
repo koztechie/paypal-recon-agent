@@ -95,6 +95,10 @@ const server = createServer((req, res) => {
 					recon: p.recon ?? "PENDING",
 					amount: (Number(p.amount_minor) / 100).toFixed(2),
 					fee: (Number(p.fee_minor) / 100).toFixed(2),
+					net:
+						p.net_minor != null
+							? (Number(p.net_minor) / 100).toFixed(2)
+							: "",
 					variance:
 						p.variance != null ? (Number(p.variance) / 100).toFixed(2) : "",
 					currency: p.currency,
@@ -124,7 +128,8 @@ const server = createServer((req, res) => {
 			}
 			const ev = getDb()
 				.prepare(
-					`SELECT event_type, paypal_event_id ref, received_at at FROM webhook_events
+					`SELECT event_type, paypal_event_id ref, received_at at, payload_json payload
+       FROM webhook_events
        ORDER BY received_at`,
 				)
 				.all() as Array<Record<string, unknown>>;
@@ -140,6 +145,7 @@ const server = createServer((req, res) => {
 					currency: "USD",
 					at: e.at,
 					note: e.ref,
+					payload: typeof e.payload === "string" ? e.payload : "",
 				});
 			}
 			res.writeHead(200, {

@@ -61,3 +61,12 @@ body {
   --color-pp-danger: var(--pp-danger);
   --font-paypal: var(--pp-font);
 }
+
+/* AG Grid: rows are clickable (detail panel, stage 82). */
+.ag-row {
+  cursor: pointer;
+}
+
+.ag-row.row-detail-selected {
+  background: var(--pp-highlight);
+}
