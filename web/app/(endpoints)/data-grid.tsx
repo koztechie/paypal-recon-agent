@@ -59,7 +59,7 @@ const columnTypes: ColTypeDefs<Row> = {
   money: { valueFormatter: formatMoney, filter: 'agNumberColumnFilter' },
 };
 
-const defaultColDef: ColDef<Row> = { filter: true };
+const defaultColDef: ColDef<Row> = { filter: true, sortable: true };
 const autoSizeStrategy = { type: 'fitCellContents' } as const;
 
 export function DataGrid({ rows, columns }: { rows: Row[]; columns: ColDef<Row>[] }) {

@@ -18,3 +18,8 @@ Date: 2026-10-28 (plan date 06.11 — early)
 - Restored: npm run dev + ngrok (SAME stable URL -> webhook registration still valid),
   BASE_URL re-verified/updated, /health 200 both locally and through the tunnel.
 - Lesson: infra must be re-verified at session start (added to daily ritual).
+
+## Update (2026-10-28, stage 81): PNG replaced
+- The original PNG was captured with ffmpeg x11grab on the LOCAL display, which does
+  not show the (remote) browser window — it contained an unrelated window and was
+  invalid evidence. Replaced with a real browser screenshot of the Ledger grid.
