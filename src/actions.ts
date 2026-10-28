@@ -153,7 +153,9 @@ const REMIND_SYSTEM = [
 	"reminders_last_24h, reminders_lifetime}",
 	"Rules: WAIT if the invoice is already paid/cancelled, or if a reminder was",
 	"already sent in the last 24h, or if 3+ reminders were already sent.",
-	"REMIND if the invoice is unpaid and overdue and limits allow it.",
+	"REMIND if the invoice is unpaid AND days_outstanding > 0 — ANY positive",
+	"number of days means it is overdue already (there is no grace period).",
+	"Zero or negative days_outstanding => WAIT.",
 	'Reply with STRICT JSON only: {"decision":"REMIND|WAIT","reason":"one short sentence"}',
 	"No markdown, no extra keys.",
 ].join("\n");

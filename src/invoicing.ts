@@ -66,14 +66,7 @@ export async function createDraftInvoice(
 	// Toolkit quirk (v1.11.0, stage 40 finding): create_invoice returns ONLY the
 	// self link {rel,href,method} (not the invoice body). Extract the id and
 	// fetch the full record via get_invoice.
-	const parsed =
-		typeof result === "string"
-			? (JSON.parse(result) as InvoiceResult)
-			: (result as InvoiceResult);
-
-	if ("error" in (parsed as Record<string, unknown>)) {
-		throw new Error(`PayPal tool error: ${JSON.stringify(parsed)}`);
-	}
+	const parsed = parseToolResult(result);
 
 	let invoiceId: string | undefined = parsed.id;
 	if (!invoiceId && typeof parsed.href === "string") {
@@ -124,13 +117,7 @@ export async function sendInvoice(
 		{ toolCallId: "send-invoice", messages: [] },
 	);
 
-	const parsed =
-		typeof result === "string"
-			? (JSON.parse(result) as InvoiceResult)
-			: (result as InvoiceResult);
-	if ("error" in (parsed as Record<string, unknown>)) {
-		throw new Error(`PayPal tool error: ${JSON.stringify(parsed)}`);
-	}
+	const parsed = parseToolResult(result);
 	markAgentActionExecuted("send_invoice", invoiceId);
 	return parsed;
 }
@@ -148,6 +135,14 @@ export function parseToolResult(result: unknown): InvoiceResult {
 	const parsed =
 		typeof result === "string" ? (JSON.parse(result) as unknown) : result;
 	if (parsed && typeof parsed === "object" && "error" in parsed) {
+		throw new Error(`PayPal tool error: ${JSON.stringify(parsed)}`);
+	}
+	// Toolkit serializes caught API errors as {ok:false,status,code,message}.
+	if (
+		parsed &&
+		typeof parsed === "object" &&
+		(parsed as { ok?: boolean }).ok === false
+	) {
 		throw new Error(`PayPal tool error: ${JSON.stringify(parsed)}`);
 	}
 	return parsed as InvoiceResult;
@@ -263,13 +258,7 @@ export async function sendInvoiceReminder(
 	mkdirSync("logs", { recursive: true });
 	writeFileSync(REMINDER_LEDGER, JSON.stringify(ledger, null, 2));
 
-	const parsed =
-		typeof result === "string"
-			? (JSON.parse(result) as InvoiceResult)
-			: (result as InvoiceResult);
-	if ("error" in (parsed as Record<string, unknown>)) {
-		throw new Error(`PayPal tool error: ${JSON.stringify(parsed)}`);
-	}
+	const parsed = parseToolResult(result);
 	markAgentActionExecuted("send_invoice_reminder", invoiceId);
 	return parsed;
 }
