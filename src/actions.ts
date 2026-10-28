@@ -7,6 +7,12 @@
  *   MISMATCH  — identifiable invoice but discrepancy (currency differs, overpay)
  * Classification is LLM-based; temperature=0; strict JSON output.
  */
+
+import {
+	classifyPaymentRules,
+	decideReminderRules,
+	withFallback,
+} from "./fallback.ts";
 import { chat } from "./llm.ts";
 
 export type PaymentClass = "PAID" | "PARTIAL" | "FOREIGN" | "MISMATCH";
@@ -78,23 +84,41 @@ export async function classifyIncomingPayment(
 		payment,
 		open_invoices: openInvoices,
 	});
-	const r = await chat(CLASSIFY_SYSTEM, user, {
-		temperature: 0,
-		maxTokens: 120,
-	});
-	const parsed = parseJsonLoose(r.text);
-	const cls = (parsed.class ?? "").toUpperCase();
-	const valid: PaymentClass[] = ["PAID", "PARTIAL", "FOREIGN", "MISMATCH"];
-	if (!valid.includes(cls as PaymentClass)) {
-		throw new Error(
-			`classifier returned invalid class: ${r.text.slice(0, 160)}`,
-		);
-	}
+
+	const { value, via } = await withFallback(
+		"classify",
+		async () => {
+			const r = await chat(CLASSIFY_SYSTEM, user, {
+				temperature: 0,
+				maxTokens: 120,
+			});
+			const parsed = parseJsonLoose(r.text);
+			const cls = (parsed.class ?? "").toUpperCase();
+			const valid: PaymentClass[] = ["PAID", "PARTIAL", "FOREIGN", "MISMATCH"];
+			if (!valid.includes(cls as PaymentClass)) {
+				throw new Error(
+					`classifier returned invalid class: ${r.text.slice(0, 160)}`,
+				);
+			}
+			return {
+				class: cls as PaymentClass,
+				reason: (parsed.reason ?? "").trim(),
+				raw: r.text,
+				ms: r.ms,
+			};
+		},
+		() => ({
+			...classifyPaymentRules(payment, openInvoices),
+			raw: "",
+			ms: 0,
+		}),
+	);
+
 	return {
-		class: cls as PaymentClass,
-		reason: (parsed.reason ?? "").trim(),
-		raw: r.text,
-		ms: r.ms,
+		class: value.class,
+		reason: value.reason,
+		raw: value.raw || `(rules fallback: ${via})`,
+		ms: value.ms,
 	};
 }
 
@@ -173,14 +197,24 @@ export interface ReminderInput {
 export async function decideReminder(
 	input: ReminderInput,
 ): Promise<{ decision: "REMIND" | "WAIT"; reason: string }> {
-	const r = await chat(REMIND_SYSTEM, JSON.stringify(input), {
-		temperature: 0,
-		maxTokens: 80,
-	});
-	const parsed = parseJsonLoose(r.text);
-	const d = (parsed.decision ?? "").toUpperCase();
-	if (d !== "REMIND" && d !== "WAIT") {
-		throw new Error(`reminder decision invalid: ${r.text.slice(0, 160)}`);
-	}
-	return { decision: d, reason: (parsed.reason ?? "").trim() };
+	const { value } = await withFallback(
+		"decide_reminder",
+		async () => {
+			const r = await chat(REMIND_SYSTEM, JSON.stringify(input), {
+				temperature: 0,
+				maxTokens: 80,
+			});
+			const parsed = parseJsonLoose(r.text);
+			const d = (parsed.decision ?? "").toUpperCase();
+			if (d !== "REMIND" && d !== "WAIT") {
+				throw new Error(`reminder decision invalid: ${r.text.slice(0, 160)}`);
+			}
+			return {
+				decision: d as "REMIND" | "WAIT",
+				reason: (parsed.reason ?? "").trim(),
+			};
+		},
+		() => decideReminderRules(input),
+	);
+	return value;
 }
