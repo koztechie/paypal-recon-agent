@@ -12,6 +12,7 @@ export interface DraftInvoiceInput {
 	amount: string; // decimal string, e.g. "75.00"
 	currency?: string;
 	note?: string;
+	invoiceNumber?: string; // optional explicit number (PayPal rejects duplicates)
 }
 
 export interface InvoiceResult {
@@ -44,6 +45,7 @@ export async function createDraftInvoice(
 		{
 			currency_code: input.currency ?? "USD",
 			note: input.note ?? "Created via Agent Toolkit",
+			...(input.invoiceNumber ? { invoice_number: input.invoiceNumber } : {}),
 			primary_recipients: [
 				{ billing_info: { email_address: input.buyerEmail } },
 			],
