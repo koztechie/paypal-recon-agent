@@ -85,6 +85,9 @@ export async function chat(
 						generationConfig: {
 							temperature: opts.temperature ?? 0,
 							maxOutputTokens: opts.maxTokens ?? 512,
+							// Stage 71 finding: this model emits ZERO thought tokens;
+							// latency is free-tier serving time, not thinking.
+							// (thinkingBudget=0 -> 400; thinkingLevel: no measurable effect.)
 						},
 					},
 					timeout,
