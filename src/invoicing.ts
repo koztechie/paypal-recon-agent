@@ -82,3 +82,33 @@ export async function createDraftInvoice(
 	);
 	return (typeof full === "string" ? JSON.parse(full) : full) as InvoiceResult;
 }
+
+export async function sendInvoice(
+	tools: ToolkitTools,
+	invoiceId: string,
+	note?: string,
+): Promise<InvoiceResult> {
+	const execute = (
+		tools.send_invoice as unknown as {
+			execute: (a: unknown, o: unknown) => Promise<unknown>;
+		}
+	).execute;
+
+	const result = await execute(
+		{
+			invoice_id: invoiceId,
+			send_to_recipient: true,
+			...(note ? { note } : {}),
+		},
+		{ toolCallId: "send-invoice", messages: [] },
+	);
+
+	const parsed =
+		typeof result === "string"
+			? (JSON.parse(result) as InvoiceResult)
+			: (result as InvoiceResult);
+	if ("error" in (parsed as Record<string, unknown>)) {
+		throw new Error(`PayPal tool error: ${JSON.stringify(parsed)}`);
+	}
+	return parsed;
+}
