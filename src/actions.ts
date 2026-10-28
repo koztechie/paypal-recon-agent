@@ -46,7 +46,11 @@ const CLASSIFY_SYSTEM = [
 	"No markdown, no extra keys.",
 ].join("\n");
 
-function parseJsonLoose(text: string): { class?: string; reason?: string } {
+function parseJsonLoose(text: string): {
+	class?: string;
+	reason?: string;
+	decision?: string;
+} {
 	const cleaned = text
 		.replace(/^```(?:json)?/m, "")
 		.replace(/```$/m, "")
@@ -139,4 +143,42 @@ export async function explainReconciliation(
 	} catch {
 		return { text: fallbackReason, via: "fallback" };
 	}
+}
+
+// --- Action #3 (stage 64): decide whether to send a reminder -----------------
+
+const REMIND_SYSTEM = [
+	"You decide ONE thing: should a payment reminder be sent for an invoice?",
+	"Input JSON: {invoice_number, status, amount, currency, days_outstanding,",
+	"reminders_last_24h, reminders_lifetime}",
+	"Rules: WAIT if the invoice is already paid/cancelled, or if a reminder was",
+	"already sent in the last 24h, or if 3+ reminders were already sent.",
+	"REMIND if the invoice is unpaid and overdue and limits allow it.",
+	'Reply with STRICT JSON only: {"decision":"REMIND|WAIT","reason":"one short sentence"}',
+	"No markdown, no extra keys.",
+].join("\n");
+
+export interface ReminderInput {
+	invoice_number: string;
+	status: string;
+	amount: string;
+	currency: string;
+	days_outstanding: number;
+	reminders_last_24h: number;
+	reminders_lifetime: number;
+}
+
+export async function decideReminder(
+	input: ReminderInput,
+): Promise<{ decision: "REMIND" | "WAIT"; reason: string }> {
+	const r = await chat(REMIND_SYSTEM, JSON.stringify(input), {
+		temperature: 0,
+		maxTokens: 80,
+	});
+	const parsed = parseJsonLoose(r.text);
+	const d = (parsed.decision ?? "").toUpperCase();
+	if (d !== "REMIND" && d !== "WAIT") {
+		throw new Error(`reminder decision invalid: ${r.text.slice(0, 160)}`);
+	}
+	return { decision: d, reason: (parsed.reason ?? "").trim() };
 }
