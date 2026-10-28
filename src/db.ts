@@ -54,6 +54,48 @@ function dollarsToMinor(value: string | undefined): number {
 	return Math.round(parseFloat(value) * 100);
 }
 
+/** Extract a payments row from INVOICING.INVOICE.PAID events (invoice payments). */
+export function insertPaymentFromInvoiceEvent(
+	payload: WebhookPayload,
+): string | undefined {
+	const inv = (payload.resource?.invoice ?? {}) as Record<string, unknown>;
+	const detail = (inv.detail ?? {}) as Record<string, unknown>;
+	const paymentsObj = (inv.payments ?? {}) as Record<string, unknown>;
+	const paidAmount = (paymentsObj.paid_amount ?? {}) as {
+		value?: string;
+		currency_code?: string;
+	};
+	const txns = (paymentsObj.transactions ?? []) as Array<
+		Record<string, unknown>
+	>;
+	const txn = txns[0] ?? {};
+	const paymentId =
+		typeof txn.payment_id === "string" ? txn.payment_id : undefined;
+	if (!paymentId) return undefined;
+
+	const d = getDb();
+	d.prepare(
+		`INSERT INTO payments (paypal_payment_id, currency, amount_minor, fee_minor, net_minor, status, source, received_at, raw_json)
+     VALUES (?, ?, ?, 0, ?, 'COMPLETED', 'webhook', ?, ?)
+     ON CONFLICT(paypal_payment_id) DO NOTHING`,
+	).run(
+		paymentId,
+		paidAmount.currency_code ?? "USD",
+		dollarsToMinor(paidAmount.value),
+		dollarsToMinor(paidAmount.value),
+		typeof txn.payment_date_time === "string"
+			? txn.payment_date_time
+			: new Date().toISOString(),
+		JSON.stringify({
+			event_id: payload.id,
+			invoice_number: detail.invoice_number ?? null,
+			invoice_id: inv.id ?? null,
+			...payload,
+		}),
+	);
+	return paymentId;
+}
+
 /** Extract a payments row from PAYMENT.* webhook resources (capture/sale shape). */
 export function insertPaymentFromEvent(
 	payload: WebhookPayload,

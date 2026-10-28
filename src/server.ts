@@ -5,7 +5,11 @@
  */
 import { appendFileSync, mkdirSync } from "node:fs";
 import { createServer } from "node:http";
-import { insertPaymentFromEvent, insertWebhookEvent } from "./db.ts";
+import {
+	insertPaymentFromEvent,
+	insertPaymentFromInvoiceEvent,
+	insertWebhookEvent,
+} from "./db.ts";
 
 mkdirSync("logs", { recursive: true });
 
@@ -50,6 +54,11 @@ const server = createServer((req, res) => {
 						const paymentId = insertPaymentFromEvent(full);
 						console.log(
 							`[webhook] payment row: ${paymentId ?? "none"} (${dedupe})`,
+						);
+					} else if (full.event_type === "INVOICING.INVOICE.PAID") {
+						const paymentId = insertPaymentFromInvoiceEvent(full);
+						console.log(
+							`[webhook] invoice-paid row: ${paymentId ?? "none"} (${dedupe})`,
 						);
 					}
 				} catch (dbErr) {
