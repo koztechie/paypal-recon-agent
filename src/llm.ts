@@ -149,7 +149,11 @@ export interface RawChatResponse {
  */
 export async function chatRaw(
 	_user: string,
-	extra: { contents: unknown[]; functionDeclarations: unknown[] },
+	extra: {
+		contents: unknown[];
+		functionDeclarations: unknown[];
+		system?: string;
+	},
 ): Promise<RawChatResponse> {
 	const { provider, model, key } = config();
 	if (provider !== "gemini") {
@@ -163,6 +167,9 @@ export async function chatRaw(
 				`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
 				{ "x-goog-api-key": key },
 				{
+					...(extra.system
+						? { systemInstruction: { parts: [{ text: extra.system }] } }
+						: {}),
 					contents: extra.contents,
 					tools: [{ functionDeclarations: extra.functionDeclarations }],
 					generationConfig: { temperature: 0, maxOutputTokens: 1024 },

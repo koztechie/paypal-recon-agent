@@ -10,6 +10,7 @@
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { chatRaw } from "./llm.ts";
 import { createPaypalToolkit, type ToolkitTools } from "./paypal.ts";
+import { AGENT_SYSTEM_PROMPT } from "./prompts.ts";
 
 export interface AgentToolResult {
 	agentText: string;
@@ -95,6 +96,7 @@ export async function runAgentTurn(
 		const res = await chatRaw(userPrompt, {
 			contents,
 			functionDeclarations: declarations,
+			system: AGENT_SYSTEM_PROMPT,
 		});
 		const candidate = res.candidates?.[0];
 		const parts = (candidate?.content?.parts ?? []) as Part[];
