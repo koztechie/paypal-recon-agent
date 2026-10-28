@@ -41,6 +41,7 @@ export function createPaypalToolkit(): PayPalAgentToolkit {
 					cancelReminders: true,
 					createConditionalRules: true,
 					recordPayment: true,
+					setupReminders: true, // auto reminders (ADR-012, stage 42)
 					// RED LIST (human-only): cancel, delete, recordRefund
 				},
 				orders: {

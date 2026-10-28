@@ -2,6 +2,7 @@
  * Invoicing helpers on top of the Agent Toolkit (stages 40-45).
  * All calls go through the guardrail whitelist in src/paypal.ts.
  */
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import type { ToolkitTools } from "./paypal.ts";
 
 export interface DraftInvoiceInput {
@@ -102,6 +103,96 @@ export async function sendInvoice(
 		},
 		{ toolCallId: "send-invoice", messages: [] },
 	);
+
+	const parsed =
+		typeof result === "string"
+			? (JSON.parse(result) as InvoiceResult)
+			: (result as InvoiceResult);
+	if ("error" in (parsed as Record<string, unknown>)) {
+		throw new Error(`PayPal tool error: ${JSON.stringify(parsed)}`);
+	}
+	return parsed;
+}
+
+// --- Reminder with SECURITY.md rule-4 limits (max 1/24h, max 3 per invoice) ---
+
+const REMINDER_LEDGER = "logs/reminders.json";
+const REMINDER_MAX_PER_DAY = 1;
+const REMINDER_MAX_LIFETIME = 3;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Toolkit execute() returns JSON strings; some calls return nothing (HTTP 204). */
+export function parseToolResult(result: unknown): InvoiceResult {
+	if (result == null || result === "") return {};
+	const parsed =
+		typeof result === "string" ? (JSON.parse(result) as unknown) : result;
+	if (parsed && typeof parsed === "object" && "error" in parsed) {
+		throw new Error(`PayPal tool error: ${JSON.stringify(parsed)}`);
+	}
+	return parsed as InvoiceResult;
+}
+
+interface ReminderLedger {
+	[invoiceId: string]: string[]; // ISO timestamps
+}
+
+function loadLedger(): ReminderLedger {
+	try {
+		return JSON.parse(readFileSync(REMINDER_LEDGER, "utf8")) as ReminderLedger;
+	} catch {
+		return {};
+	}
+}
+
+export function checkReminderAllowed(invoiceId: string): {
+	allowed: boolean;
+	reason: string;
+} {
+	const ledger = loadLedger();
+	const stamps = (ledger[invoiceId] ?? []).map((s) => new Date(s).getTime());
+	const now = Date.now();
+
+	if (stamps.length >= REMINDER_MAX_LIFETIME) {
+		return {
+			allowed: false,
+			reason: `BLOCKED: lifetime limit reached (${REMINDER_MAX_LIFETIME})`,
+		};
+	}
+	const recent = stamps.filter((t) => now - t < DAY_MS).length;
+	if (recent >= REMINDER_MAX_PER_DAY) {
+		return {
+			allowed: false,
+			reason: `BLOCKED: 24h limit reached (${REMINDER_MAX_PER_DAY}/day)`,
+		};
+	}
+	return { allowed: true, reason: "PASS" };
+}
+
+export async function sendInvoiceReminder(
+	tools: ToolkitTools,
+	invoiceId: string,
+	note?: string,
+): Promise<InvoiceResult> {
+	const gate = checkReminderAllowed(invoiceId);
+	if (!gate.allowed) {
+		throw new Error(gate.reason);
+	}
+
+	const execute = (
+		tools.send_invoice_reminder as unknown as {
+			execute: (a: unknown, o: unknown) => Promise<unknown>;
+		}
+	).execute;
+	const result = await execute(
+		{ invoice_id: invoiceId, ...(note ? { note } : {}) },
+		{ toolCallId: "send-reminder", messages: [] },
+	);
+
+	// Record only after a successful call.
+	const ledger = loadLedger();
+	ledger[invoiceId] = [...(ledger[invoiceId] ?? []), new Date().toISOString()];
+	mkdirSync("logs", { recursive: true });
+	writeFileSync(REMINDER_LEDGER, JSON.stringify(ledger, null, 2));
 
 	const parsed =
 		typeof result === "string"
