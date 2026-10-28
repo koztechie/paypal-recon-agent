@@ -6,6 +6,7 @@
 import { appendFileSync, mkdirSync } from "node:fs";
 import { createServer } from "node:http";
 import {
+	getDb,
 	insertPaymentFromEvent,
 	insertPaymentFromInvoiceEvent,
 	insertWebhookEvent,
@@ -72,6 +73,86 @@ const server = createServer((req, res) => {
 			}
 		});
 		return;
+	}
+
+	// Unified ledger for the AG Grid dashboard (stage 80): payments + invoices + events.
+	if (req.method === "GET" && url.split("?")[0] === "/api/recon/rows") {
+		try {
+			const rows: Array<Record<string, unknown>> = [];
+			const pay = getDb()
+				.prepare(
+					`SELECT p.paypal_payment_id ref, p.currency, p.amount_minor, p.fee_minor, p.net_minor,
+              p.status, p.received_at at, r.status recon, r.variance_minor variance, r.ai_explanation note
+       FROM payments p LEFT JOIN reconciliation_records r ON r.payment_id = p.id
+       ORDER BY p.received_at`,
+				)
+				.all() as Array<Record<string, unknown>>;
+			for (const p of pay) {
+				rows.push({
+					kind: "PAYMENT",
+					ref: p.ref,
+					status: p.status,
+					recon: p.recon ?? "PENDING",
+					amount: (Number(p.amount_minor) / 100).toFixed(2),
+					fee: (Number(p.fee_minor) / 100).toFixed(2),
+					variance:
+						p.variance != null ? (Number(p.variance) / 100).toFixed(2) : "",
+					currency: p.currency,
+					at: p.at,
+					note: typeof p.note === "string" ? p.note : "",
+				});
+			}
+			const inv = getDb()
+				.prepare(
+					`SELECT paypal_invoice_id ref, currency, total_minor, status, created_at at, source
+       FROM invoices ORDER BY created_at`,
+				)
+				.all() as Array<Record<string, unknown>>;
+			for (const i of inv) {
+				rows.push({
+					kind: "INVOICE",
+					ref: i.ref,
+					status: i.status,
+					recon: "",
+					amount: (Number(i.total_minor) / 100).toFixed(2),
+					fee: "",
+					variance: "",
+					currency: i.currency,
+					at: i.at,
+					note: `local:${i.source}`,
+				});
+			}
+			const ev = getDb()
+				.prepare(
+					`SELECT event_type, paypal_event_id ref, received_at at FROM webhook_events
+       ORDER BY received_at`,
+				)
+				.all() as Array<Record<string, unknown>>;
+			for (const e of ev) {
+				rows.push({
+					kind: "EVENT",
+					ref: e.event_type,
+					status: "",
+					recon: "",
+					amount: "",
+					fee: "",
+					variance: "",
+					currency: "USD",
+					at: e.at,
+					note: e.ref,
+				});
+			}
+			res.writeHead(200, {
+				"Content-Type": "application/json",
+				"Access-Control-Allow-Origin": "*",
+			});
+			res.end(JSON.stringify({ rows }));
+			return;
+		} catch (e) {
+			res.writeHead(500, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ error: String(e) }));
+			return;
+		}
 	}
 
 	res.writeHead(200, { "Content-Type": "text/plain" });
