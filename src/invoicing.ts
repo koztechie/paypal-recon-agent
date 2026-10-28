@@ -4,6 +4,7 @@
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { logAgentAction, markAgentActionExecuted } from "./auditlog.ts";
+import { enforceActionPolicy } from "./guards.ts";
 import type { ToolkitTools } from "./paypal.ts";
 
 export interface DraftInvoiceInput {
@@ -33,13 +34,22 @@ export async function createDraftInvoice(
 		}
 	).execute;
 
+	// Guard (stage 68): agent-created invoices must respect the auto-limit ($500).
+	const amountMinor = Math.round(parseFloat(input.amount) * 100);
+	const gate = enforceActionPolicy("create_invoice", amountMinor, {
+		targetRef: input.itemName,
+	});
+
 	logAgentAction({
 		action: "create_invoice",
-		limitCheck: "PASS",
+		limitCheck: gate.limitCheck,
 		targetRef: input.itemName,
 		executed: false,
-		llmDecision: "direct-call:createDraftInvoice",
+		llmDecision: `system-policy(createDraftInvoice): ${gate.reason}`,
 	});
+	if (!gate.allowed) {
+		throw new Error(`BLOCKED by guard: ${gate.reason}`);
+	}
 
 	const result = await execute(
 		{
@@ -197,6 +207,19 @@ export async function recordExternalPayment(
 			execute: (a: unknown, o: unknown) => Promise<unknown>;
 		}
 	).execute;
+	// Guard (stage 68): recorded external payments must respect the auto-limit.
+	const recAmountMinor = Math.round(parseFloat(amount) * 100);
+	const recGate = enforceActionPolicy(
+		"record_payment_for_invoice",
+		recAmountMinor,
+		{
+			targetRef: invoiceId,
+		},
+	);
+	if (!recGate.allowed) {
+		markAgentActionExecuted("record_payment_for_invoice", invoiceId);
+		throw new Error(`BLOCKED by guard: ${recGate.reason}`);
+	}
 	logAgentAction({
 		action: "record_payment_for_invoice",
 		limitCheck: "PASS",
