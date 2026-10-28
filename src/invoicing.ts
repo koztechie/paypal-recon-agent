@@ -168,6 +168,32 @@ export function checkReminderAllowed(invoiceId: string): {
 	return { allowed: true, reason: "PASS" };
 }
 
+/** Guarded manual/external payment recording (stage 53 wrapper — never raw execute). */
+export async function recordExternalPayment(
+	tools: ToolkitTools,
+	invoiceId: string,
+	amount: string,
+	currency: string,
+	note?: string,
+): Promise<InvoiceResult> {
+	const execute = (
+		tools.record_payment_for_invoice as unknown as {
+			execute: (a: unknown, o: unknown) => Promise<unknown>;
+		}
+	).execute;
+	const result = await execute(
+		{
+			invoice_id: invoiceId,
+			payment_date: "2026-10-28",
+			method: "CASH",
+			amount: { currency_code: currency, value: amount },
+			...(note ? { note } : {}),
+		},
+		{ toolCallId: "record-external-payment", messages: [] },
+	);
+	return parseToolResult(result);
+}
+
 export async function sendInvoiceReminder(
 	tools: ToolkitTools,
 	invoiceId: string,

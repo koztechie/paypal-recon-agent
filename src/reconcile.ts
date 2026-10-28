@@ -156,6 +156,24 @@ export async function reconcilePayment(
 	};
 }
 
+/**
+ * Human resolution of a REVIEW discrepancy (stage 53, SECURITY: decided_by='human').
+ * Moves status to MATCHED with match_method='manual', keeping the original variance
+ * and ai_explanation (audit trail preserved).
+ */
+export function resolveReconciliation(
+	db: DatabaseSync,
+	reconId: number,
+	resolution: string,
+): void {
+	db.prepare(
+		`UPDATE reconciliation_records
+     SET status = 'MATCHED', match_method = 'manual', resolution = ?,
+         resolved_at = datetime('now'), decided_by = 'human'
+     WHERE id = ? AND status = 'REVIEW'`,
+	).run(resolution, reconId);
+}
+
 export function saveReconciliation(
 	db: DatabaseSync,
 	payment: PaymentRow,
