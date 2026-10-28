@@ -20,3 +20,9 @@ Date: 2026-10-28 (plan date 06.11 — early)
   (ag-grid.com form — manual user step) drop it into web/.env.local.
 - Root .gitignore extended with .next/ ; web/node_modules + web/.env.local ignored.
 - AI assistant (OpenAI) intentionally left disabled — our assistant is Gemini-based.
+
+## Push incident (recurring)
+- Push failed with "could not read Username for 'https://github.com'": gitconfig had an
+  EMPTY `credential.https://github.com.helper` entry (an empty helper clears the chain).
+- Fix (repeatable): `gh auth setup-git` -> push OK (8eb9d88), CI success.
+- Note for future stages: if push fails this way, run gh auth setup-git first.
