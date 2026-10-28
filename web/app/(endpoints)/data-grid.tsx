@@ -7,7 +7,7 @@
 // Clicking a row opens the detail panel below the grid (stage 82): every field of the row,
 // plus a pretty-printed raw payload when the row carries one (webhook events).
 
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState, type FormEvent } from 'react';
 import {
   CellStyleModule,
   ClientSideRowModelModule,
@@ -60,6 +60,73 @@ const theme = themeQuartz.withParams({
 
 export type Row = Record<string, unknown>;
 
+// Structured filter returned by POST /api/nl (stage 84 ★): the LLM's translation of a
+// natural-language question, or the deterministic fallback's answer.
+export interface LedgerFilter {
+  kind?: string;
+  recon?: string;
+  status?: string;
+  currency?: string;
+  amountMin?: number;
+  amountMax?: number;
+  dateFrom?: string;
+  dateTo?: string;
+  quick?: string;
+}
+
+const textEq = (filter: string) => ({ filterType: 'text', type: 'equals', filter });
+
+// Map the structured filter onto AG Grid's filter model (column ids = field names).
+function buildFilterModel(f: LedgerFilter): Record<string, unknown> {
+  const model: Record<string, unknown> = {};
+  if (f.kind) model.kind = textEq(f.kind);
+  if (f.recon) model.recon = textEq(f.recon);
+  if (f.status) model.status = textEq(f.status);
+  if (f.currency) model.currency = textEq(f.currency);
+  if (f.amountMin != null || f.amountMax != null) {
+    model.amount = {
+      filterType: 'number',
+      type:
+        f.amountMin != null && f.amountMax != null
+          ? 'inRange'
+          : f.amountMin != null
+            ? 'greaterThanOrEqual'
+            : 'lessThanOrEqual',
+      ...(f.amountMin != null ? { filter: f.amountMin } : {}),
+      ...(f.amountMax != null ? { filterTo: f.amountMax } : {}),
+    };
+  }
+  if (f.dateFrom || f.dateTo) {
+    // The `at` column holds ISO strings, where lexicographic order IS chronological.
+    model.at = {
+      filterType: 'text',
+      type:
+        f.dateFrom && f.dateTo
+          ? 'inRange'
+          : f.dateFrom
+            ? 'greaterThanOrEqual'
+            : 'lessThanOrEqual',
+      ...(f.dateFrom ? { filter: f.dateFrom } : {}),
+      ...(f.dateTo ? { filterTo: f.dateTo } : {}),
+    };
+  }
+  return model;
+}
+
+function describeFilter(f: LedgerFilter): string {
+  const parts: string[] = [];
+  if (f.kind) parts.push(`kind=${f.kind}`);
+  if (f.recon) parts.push(`recon=${f.recon}`);
+  if (f.status) parts.push(`status=${f.status}`);
+  if (f.currency) parts.push(`currency=${f.currency}`);
+  if (f.amountMin != null) parts.push(`amount ≥ ${f.amountMin}`);
+  if (f.amountMax != null) parts.push(`amount ≤ ${f.amountMax}`);
+  if (f.dateFrom) parts.push(`at ≥ ${f.dateFrom}`);
+  if (f.dateTo) parts.push(`at ≤ ${f.dateTo}`);
+  if (f.quick) parts.push(`text contains "${f.quick}"`);
+  return parts.length ? parts.join(', ') : 'no conditions — showing everything';
+}
+
 // Money columns hold numbers and format them in the row's `currency`.
 const formatMoney = ({ value, data }: ValueFormatterParams<Row>) =>
   typeof value === 'number' && typeof data?.currency === 'string'
@@ -93,10 +160,67 @@ const displayValue = (v: unknown) => {
   return String(v);
 };
 
-export function DataGrid({ rows, columns }: { rows: Row[]; columns: ColDef<Row>[] }) {
+export function DataGrid({
+  rows,
+  columns,
+  nlApi,
+}: {
+  rows: Row[];
+  columns: ColDef<Row>[];
+  /** Endpoint that turns { query } into { ok, filter, source, ms } — enables the "Ask the ledger" box. */
+  nlApi?: string;
+}) {
   const [search, setSearch] = useState('');
   const [detail, setDetail] = useState<Row | null>(null);
+  const [nlQuery, setNlQuery] = useState('');
+  const [nlBusy, setNlBusy] = useState(false);
+  const [nlNote, setNlNote] = useState<{ text: string; isError: boolean } | null>(null);
   const apiRef = useRef<GridApi<Row> | null>(null);
+
+  // Natural language -> grid filters (stage 84 ★).
+  const askLedger = async (e: FormEvent) => {
+    e.preventDefault();
+    const query = nlQuery.trim();
+    if (!query || !nlApi || nlBusy) return;
+    setNlBusy(true);
+    setNlNote(null);
+    try {
+      const res = await fetch(nlApi, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query }),
+        signal: AbortSignal.timeout(40_000),
+      });
+      const data = (await res.json()) as {
+        ok?: boolean;
+        error?: string;
+        filter?: LedgerFilter;
+        source?: string;
+        ms?: number;
+      };
+      if (!data.ok || !data.filter) throw new Error(data.error ?? 'no filter returned');
+      const model = buildFilterModel(data.filter);
+      apiRef.current?.setFilterModel(Object.keys(model).length ? (model as never) : null);
+      setSearch(data.filter.quick ?? '');
+      setNlNote({
+        text: `${describeFilter(data.filter)} — via ${data.source ?? 'llm'} · ${((data.ms ?? 0) / 1000).toFixed(1)}s`,
+        isError: false,
+      });
+    } catch (err) {
+      setNlNote({
+        text: `Could not parse the query: ${err instanceof Error ? err.message : String(err)}`,
+        isError: true,
+      });
+    } finally {
+      setNlBusy(false);
+    }
+  };
+
+  const clearAll = () => {
+    apiRef.current?.setFilterModel(null);
+    setSearch('');
+    setNlNote(null);
+  };
 
   // Click a row to open its details; click the same row again to close the panel.
   const onRowClicked = (e: RowClickedEvent<Row>) => {
@@ -145,6 +269,39 @@ export function DataGrid({ rows, columns }: { rows: Row[]; columns: ColDef<Row>[
         />
         <span className="text-xs text-pp-muted">Click a row to see its details</span>
       </div>
+      {nlApi && (
+        <form onSubmit={askLedger} role="search" className="flex flex-wrap items-center gap-2">
+          <input
+            type="text"
+            value={nlQuery}
+            onChange={(e) => setNlQuery(e.target.value)}
+            placeholder='Ask the ledger… e.g. "show unmatched payments over $50"'
+            aria-label="Ask the ledger in plain English"
+            className="h-10 w-[28rem] max-w-full rounded border border-pp-border px-3 text-sm outline-none focus:border-pp-blue"
+          />
+          <button
+            type="submit"
+            disabled={nlBusy || !nlQuery.trim()}
+            className="h-10 rounded bg-pp-blue px-4 text-sm font-semibold text-white hover:bg-pp-blue-dark disabled:opacity-50"
+          >
+            {nlBusy ? 'Thinking…' : 'Filter'}
+          </button>
+          {nlNote && (
+            <span
+              role="status"
+              aria-live="polite"
+              className={nlNote.isError ? 'text-xs text-pp-danger' : 'text-xs text-pp-muted'}
+            >
+              {nlNote.text}
+            </span>
+          )}
+          {nlNote && !nlNote.isError && (
+            <button type="button" onClick={clearAll} className="text-xs text-pp-blue hover:underline">
+              Clear
+            </button>
+          )}
+        </form>
+      )}
       <div className="min-h-0 flex-1">
         <AgGridProvider modules={modules}>
           <AgGridReact

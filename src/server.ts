@@ -11,6 +11,7 @@ import {
 	insertPaymentFromInvoiceEvent,
 	insertWebhookEvent,
 } from "./db.ts";
+import { parseLedgerQuery } from "./nl.ts";
 
 mkdirSync("logs", { recursive: true });
 
@@ -159,6 +160,39 @@ const server = createServer((req, res) => {
 			res.end(JSON.stringify({ error: String(e) }));
 			return;
 		}
+	}
+
+	// Natural language -> ledger filter (stage 84 ★): LLM first, deterministic
+	// fallback on timeout/error. Never throws — always returns a filter object.
+	if (req.method === "POST" && url.split("?")[0] === "/api/nl-filter") {
+		let raw = "";
+		req.on("data", (chunk: Buffer) => {
+			raw += chunk.toString("utf8");
+			if (raw.length > 10_000) req.destroy();
+		});
+		req.on("end", async () => {
+			const cors = { "Access-Control-Allow-Origin": "*" };
+			try {
+				const body = JSON.parse(raw || "{}") as { query?: unknown };
+				const query =
+					typeof body.query === "string" ? body.query.trim() : "";
+				if (!query) {
+					res.writeHead(400, {
+						"Content-Type": "application/json",
+						...cors,
+					});
+					res.end(JSON.stringify({ ok: false, error: "query required" }));
+					return;
+				}
+				const result = await parseLedgerQuery(query.slice(0, 300));
+				res.writeHead(200, { "Content-Type": "application/json", ...cors });
+				res.end(JSON.stringify({ ok: true, ...result }));
+			} catch (e) {
+				res.writeHead(500, { "Content-Type": "application/json", ...cors });
+				res.end(JSON.stringify({ ok: false, error: String(e) }));
+			}
+		});
+		return;
 	}
 
 	res.writeHead(200, { "Content-Type": "text/plain" });
