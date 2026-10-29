@@ -230,7 +230,7 @@ export async function recordExternalPayment(
 	const result = await execute(
 		{
 			invoice_id: invoiceId,
-			payment_date: "2026-10-28",
+			payment_date: new Date().toISOString().slice(0, 10),
 			method: "CASH",
 			amount: { currency_code: currency, value: amount },
 			...(note ? { note } : {}),
