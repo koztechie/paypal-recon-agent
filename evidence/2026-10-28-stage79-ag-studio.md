@@ -14,6 +14,10 @@ Date: 2026-10-28 (plan date 06.11 — early)
 - Theming: app/dashboard/studio/theme.ts ("AG Studio theme ... design tokens") +
   initial-report.ts theme blocks (legend/positions) — configured in code.
 - Screenshot: evidence/2026-10-28-stage79-ag-studio.png (1920x1200 full-screen frame).
+  **REPLACED 29.10 (stage 92 audit):** the original file was an x11grab capture of the
+  WRONG window (the browser is not on the local X display — the bug documented in the
+  stage-81 incident). Re-captured with Playwright against the live /invoices page:
+  real INV2-* rows, filters, Export CSV (log: rows rendered, unique invoice ids > 0).
 
 ## Notes / follow-ups
 - AG_STUDIO licence key: OPTIONAL for running; if the trial key is claimed later
