@@ -373,6 +373,22 @@ export function DataGrid({
     }
   }
 
+  // Empty state (stage 88): no data at all (fresh ledger) — a friendly card instead
+  // of an empty grid.
+  if (rows.length === 0) {
+    return (
+      <div className="flex min-h-0 flex-1 items-center justify-center">
+        <div className="w-full max-w-lg rounded border border-pp-border bg-pp-surface p-8 text-center">
+          <h2 className="text-lg font-semibold text-pp-navy">No rows yet</h2>
+          <p className="mt-2 text-sm text-pp-muted">
+            The ledger fills up as PayPal webhooks arrive — send a sandbox payment or create an
+            invoice and it will appear here within seconds.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
       <div className="flex items-center gap-3">
@@ -437,6 +453,7 @@ export function DataGrid({
             defaultColDef={defaultColDef}
             quickFilterText={search}
             autoSizeStrategy={autoSizeStrategy}
+            overlayNoRowsTemplate='<span class="text-sm text-pp-muted">No rows match the current filters — clear them to see the ledger.</span>'
             enableCellTextSelection
             getRowClass={(p: { data?: Row }) =>
               p.data && p.data === detail ? 'row-detail-selected' : ''

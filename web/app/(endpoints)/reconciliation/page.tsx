@@ -22,6 +22,10 @@ const API = process.env.INTERNAL_API_URL ?? 'http://localhost:3000';
 export default async function ReconciliationLedgerPage() {
   await connection();
   const res = await fetch(`${API}/api/recon/rows`, { cache: 'no-store' });
+  if (!res.ok) {
+    // Surfaced by app/(endpoints)/error.tsx with a retry button.
+    throw new Error(`GET /api/recon/rows failed: HTTP ${res.status}`);
+  }
   const data = (await res.json()) as { rows: LedgerRow[] };
   // Amounts arrive as strings; numbers make the grid's NUMBER filters compare
   // numerically (stage 84: "over $50" must drop a $10 row).
