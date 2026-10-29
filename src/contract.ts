@@ -12,12 +12,14 @@
  * Zero runtime dependencies: hand-rolled validation (no schema library).
  */
 import { chat } from "./llm.ts";
+import { createDraftInvoice, type InvoiceResult } from "./invoicing.ts";
+import type { ToolkitTools } from "./paypal.ts";
 import type { NegotiationConfig, NegotiationResult } from "./negotiation.ts";
 
 export interface Contract {
 	id: string;
 	status: "settled";
-	parties: { buyer: string; seller: string };
+	parties: { buyer: string; seller: string; buyer_email?: string };
 	subject: { item: string; quantity: number; currency: string };
 	price: { total_minor: number; unit_minor: number };
 	terms: { type: "net_days"; days: number };
@@ -54,6 +56,10 @@ export function validateContract(input: unknown): ValidationResult {
 
 	const parties = json.parties as Record<string, unknown> | undefined;
 	if (!parties || !str(parties.buyer) || !str(parties.seller)) errors.push("parties");
+	const buyerEmail = parties ? str(parties.buyer_email) : null;
+	if (parties && parties.buyer_email !== undefined && (!buyerEmail || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(buyerEmail))) {
+		errors.push("parties.buyer_email");
+	}
 
 	const subject = json.subject as Record<string, unknown> | undefined;
 	if (!subject || !str(subject.item) || !String(subject.item).trim()) errors.push("subject.item");
@@ -109,6 +115,7 @@ export async function buildContract(
 	result: NegotiationResult,
 	cfg: NegotiationConfig,
 	transcript: string[],
+	opts: { buyerEmail?: string } = {},
 ): Promise<Contract> {
 	if (!result.settled || result.agreedMinor === undefined) {
 		// Stage 98 rule: no contract without a recorded agreement.
@@ -149,6 +156,7 @@ export async function buildContract(
 		parties: {
 			buyer: "Procurement agent (finance team)",
 			seller: "Merchant agent (PayPal reconciliation agent)",
+			...(opts.buyerEmail ? { buyer_email: opts.buyerEmail } : {}),
 		},
 		subject: { item: cfg.item, quantity, currency: cfg.currency ?? "USD" },
 		price: { total_minor: agreed, unit_minor: unitMinor },
@@ -164,4 +172,59 @@ export async function buildContract(
 		throw new Error(`contract failed validation: ${check.errors.join(", ")}`);
 	}
 	return contract;
+}
+
+// --- stage 96 ★: the contract drives a REAL invoice through the core shell -----
+
+export interface ContractInvoice {
+	invoiceId: string;
+	invoiceNumber: string; // === contract.id (the audit link between them)
+	amount: string;
+	currency: string;
+	buyerEmail: string;
+	termsNote: string;
+}
+
+/**
+ * Creates the PayPal invoice for a settled contract via createDraftInvoice() —
+ * the SAME guarded core shell as the agent (audit-logged, $500 auto-limit enforced
+ * inside). The invoice carries the agreement's terms: total, currency, subject,
+ * the contract id as invoice_number, and the net terms in the note.
+ * Refuses invalid contracts or contracts without a buyer_email (stage-98 rule:
+ * no action without a recorded, valid agreement).
+ */
+export async function createInvoiceFromContract(
+	tools: ToolkitTools,
+	contract: Contract,
+): Promise<ContractInvoice> {
+	const check = validateContract(contract);
+	if (!check.ok) {
+		throw new Error(`refused: invalid contract (${check.errors.join(", ")})`);
+	}
+	const buyerEmail = contract.parties.buyer_email;
+	if (!buyerEmail) {
+		throw new Error("refused: contract has no parties.buyer_email");
+	}
+	const amount = (contract.price.total_minor / 100).toFixed(2);
+	const termsNote = `net ${contract.terms.days} days`;
+
+	const created: InvoiceResult = await createDraftInvoice(tools, {
+		buyerEmail,
+		itemName: `${contract.subject.quantity} × ${contract.subject.item} (contract ${contract.id})`,
+		amount,
+		currency: contract.subject.currency,
+		note: `${contract.summary} Contract ${contract.id}: ${termsNote}.`,
+		invoiceNumber: contract.id,
+	});
+	if (!created.id) {
+		throw new Error(`invoice created without id: ${JSON.stringify(created).slice(0, 200)}`);
+	}
+	return {
+		invoiceId: created.id,
+		invoiceNumber: contract.id,
+		amount,
+		currency: contract.subject.currency,
+		buyerEmail,
+		termsNote,
+	};
 }

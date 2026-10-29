@@ -17,6 +17,7 @@
     "toolkit:test": "node --env-file=.env.local scripts/toolkit-test.ts",
     "stage94": "node --env-file-if-exists=.env.local scripts/stage94-negotiate.ts",
     "stage95": "node --env-file-if-exists=.env.local scripts/stage95-contract.ts",
+    "stage96": "node --env-file-if-exists=.env.local scripts/stage96-invoice.ts",
     "stage40": "node --env-file=.env.local scripts/stage40.ts",
     "stage41": "node --env-file=.env.local scripts/stage41.ts",
     "stage42": "node --env-file=.env.local scripts/stage42.ts",
