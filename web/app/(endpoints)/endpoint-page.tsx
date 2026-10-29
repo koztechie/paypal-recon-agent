@@ -14,6 +14,7 @@ export function EndpointPage({
   nlApi,
   explainApi,
   actionApi,
+  autoFit,
 }: {
   title: string;
   /** The REST calls behind the page, e.g. 'GET /v1/catalogs/products'. */
@@ -29,6 +30,8 @@ export function EndpointPage({
   explainApi?: string;
   /** Enables the panel's guarded action buttons (stage 86). */
   actionApi?: string;
+  /** See DataGrid: false = explicit column widths (stage 90). */
+  autoFit?: boolean;
 }) {
   return (
     <main className="flex h-dvh flex-col bg-pp-canvas px-8 py-6 font-paypal text-pp-ink">
@@ -54,6 +57,7 @@ export function EndpointPage({
           nlApi={nlApi}
           explainApi={explainApi}
           actionApi={actionApi}
+          autoFit={autoFit}
         />
       </div>
     </main>

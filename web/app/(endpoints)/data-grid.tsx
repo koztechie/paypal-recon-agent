@@ -169,6 +169,7 @@ export function DataGrid({
   nlApi,
   explainApi,
   actionApi,
+  autoFit = true,
 }: {
   rows: Row[];
   columns: ColDef<Row>[];
@@ -178,6 +179,10 @@ export function DataGrid({
   explainApi?: string;
   /** Endpoint that turns { action, kind, ref } into { ok, message } — enables the panel's action buttons. */
   actionApi?: string;
+  /** Size columns to their content. Pages with many columns (the Ledger) pass false
+   * and set explicit widths instead, so every column fits a 1280px judge screen
+   * without a horizontal scrollbar (stage 90). */
+  autoFit?: boolean;
 }) {
   const router = useRouter();
   const [search, setSearch] = useState('');
@@ -452,7 +457,7 @@ export function DataGrid({
             columnTypes={columnTypes}
             defaultColDef={defaultColDef}
             quickFilterText={search}
-            autoSizeStrategy={autoSizeStrategy}
+            autoSizeStrategy={autoFit ? autoSizeStrategy : undefined}
             overlayNoRowsTemplate='<span class="text-sm text-pp-muted">No rows match the current filters — clear them to see the ledger.</span>'
             enableCellTextSelection
             getRowClass={(p: { data?: Row }) =>

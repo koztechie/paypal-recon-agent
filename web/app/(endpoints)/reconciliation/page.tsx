@@ -52,16 +52,20 @@ export default async function ReconciliationLedgerPage({
       nlApi="/api/nl"
       explainApi="/api/explain"
       actionApi="/api/action"
+      autoFit={false}
       columns={[
-        { field: 'kind', headerName: 'Type' },
-        { field: 'ref', headerName: 'Reference' },
-        { field: 'status', headerName: 'Status' },
-        { field: 'recon', headerName: 'Reconciliation', type: 'reconStatus' },
-        { field: 'amount', headerName: 'Amount', type: 'money' },
-        { field: 'variance', headerName: 'Variance', type: 'money' },
-        { field: 'currency', headerName: 'Currency' },
-        { field: 'at', headerName: 'Date' },
-        { field: 'note', headerName: 'Details' },
+        // Explicit widths (stage 90): all nine columns must fit a 1280px judge
+        // screen (1216px of content after px-8) with no horizontal scrollbar —
+        // auto-fit to content would push Details/Date past the viewport.
+        { field: 'kind', headerName: 'Type', width: 105 },
+        { field: 'ref', headerName: 'Reference', width: 205 },
+        { field: 'status', headerName: 'Status', width: 120 },
+        { field: 'recon', headerName: 'Reconciliation', type: 'reconStatus', width: 150 },
+        { field: 'amount', headerName: 'Amount', type: 'money', width: 105 },
+        { field: 'variance', headerName: 'Variance', type: 'money', width: 105 },
+        { field: 'currency', headerName: 'Currency', width: 95 },
+        { field: 'at', headerName: 'Date', width: 168 },
+        { field: 'note', headerName: 'Details', flex: 1, minWidth: 140, maxWidth: 340 },
       ]}
     />
   );
