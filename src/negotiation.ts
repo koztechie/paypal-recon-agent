@@ -21,6 +21,8 @@ export interface NegotiationConfig {
 	/** Hard cap on rounds (demo scenario: 3; stage 98 limit: 10). */
 	maxRounds: number;
 	currency?: string;
+	/** Payment terms for the contract derived from the deal (stage 95) — CODE-owned. */
+	paymentDays?: number;
 }
 
 export interface NegotiationRound {
