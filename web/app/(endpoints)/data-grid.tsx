@@ -13,6 +13,7 @@ import {
   CellStyleModule,
   ClientSideRowModelModule,
   ColumnAutoSizeModule,
+  CsvExportModule,
   DateFilterModule,
   enableDevValidations,
   NumberFilterModule,
@@ -35,10 +36,11 @@ if (process.env.NODE_ENV !== 'production') {
 
 // Only the grid features these pages use: in-memory rows, filters for each column type, the
 // search box (quick filter), sizing columns to their content, the row API + row classes
-// (detail panel highlight) and cell classes (status colours).
+// (detail panel highlight), cell classes (status colours) and CSV export.
 const modules = [
   CellStyleModule,
   ClientSideRowModelModule,
+  CsvExportModule,
   TextFilterModule,
   NumberFilterModule,
   DateFilterModule,
@@ -329,6 +331,14 @@ export function DataGrid({
     setNlNote(null);
   };
 
+  // CSV export (stage 87, AG Grid community): exports what the user currently sees —
+  // the active filters and sort order are respected.
+  const exportCsv = () => {
+    const page = (document.title.split(/[·|]/)[0] ?? 'grid').trim().toLowerCase() || 'grid';
+    const fileName = `${page.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'grid'}.csv`;
+    apiRef.current?.exportDataAsCsv({ fileName, exportedRows: 'filteredAndSorted' });
+  };
+
   // Click a row to open its details; click the same row again to close the panel.
   const onRowClicked = (e: RowClickedEvent<Row>) => {
     setDetail((prev) => (prev && prev === e.data ? null : (e.data ?? null)));
@@ -375,6 +385,14 @@ export function DataGrid({
           className="h-10 w-72 rounded border border-pp-border px-3 text-sm outline-none focus:border-pp-blue"
         />
         <span className="text-xs text-pp-muted">Click a row to see its details</span>
+        <button
+          type="button"
+          onClick={exportCsv}
+          aria-label="Export CSV"
+          className="ml-auto h-9 rounded border border-pp-border px-3 text-sm font-semibold text-pp-navy hover:bg-pp-highlight"
+        >
+          Export CSV
+        </button>
       </div>
       {nlApi && (
         <form onSubmit={askLedger} role="search" className="flex flex-wrap items-center gap-2">
