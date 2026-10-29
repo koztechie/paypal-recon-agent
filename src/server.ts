@@ -12,6 +12,7 @@ import {
 	insertWebhookEvent,
 } from "./db.ts";
 import { parseLedgerQuery } from "./nl.ts";
+import { explainLedgerRow } from "./explain.ts";
 
 mkdirSync("logs", { recursive: true });
 
@@ -185,6 +186,48 @@ const server = createServer((req, res) => {
 					return;
 				}
 				const result = await parseLedgerQuery(query.slice(0, 300));
+				res.writeHead(200, { "Content-Type": "application/json", ...cors });
+				res.end(JSON.stringify({ ok: true, ...result }));
+			} catch (e) {
+				res.writeHead(500, { "Content-Type": "application/json", ...cors });
+				res.end(JSON.stringify({ ok: false, error: String(e) }));
+			}
+		});
+		return;
+	}
+
+	// On-demand AI explanation of one ledger row (stage 85): why this status.
+	if (req.method === "POST" && url.split("?")[0] === "/api/explain") {
+		let raw = "";
+		req.on("data", (chunk: Buffer) => {
+			raw += chunk.toString("utf8");
+			if (raw.length > 10_000) req.destroy();
+		});
+		req.on("end", async () => {
+			const cors = { "Access-Control-Allow-Origin": "*" };
+			try {
+				const body = JSON.parse(raw || "{}") as { kind?: unknown; ref?: unknown };
+				const kind = typeof body.kind === "string" ? body.kind.trim() : "";
+				const ref = typeof body.ref === "string" ? body.ref.trim() : "";
+				if (!kind || !ref || (kind !== "PAYMENT" && kind !== "INVOICE")) {
+					res.writeHead(400, {
+						"Content-Type": "application/json",
+						...cors,
+					});
+					res.end(
+						JSON.stringify({
+							ok: false,
+							error: "kind (PAYMENT|INVOICE) and ref required",
+						}),
+					);
+					return;
+				}
+				const result = await explainLedgerRow(kind, ref.slice(0, 120));
+				if (!result) {
+					res.writeHead(404, { "Content-Type": "application/json", ...cors });
+					res.end(JSON.stringify({ ok: false, error: "row not found" }));
+					return;
+				}
 				res.writeHead(200, { "Content-Type": "application/json", ...cors });
 				res.end(JSON.stringify({ ok: true, ...result }));
 			} catch (e) {

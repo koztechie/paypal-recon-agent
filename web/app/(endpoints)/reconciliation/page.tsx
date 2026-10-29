@@ -40,6 +40,7 @@ export default async function ReconciliationLedgerPage() {
       note="The agent's journal: every payment with its reconciliation outcome (status, variance, AI explanation), every locally synced invoice, and every raw webhook event — the data the grid, the agent, and the tax reports all read from."
       rows={rows}
       nlApi="/api/nl"
+      explainApi="/api/explain"
       columns={[
         { field: 'kind', headerName: 'Type' },
         { field: 'ref', headerName: 'Reference' },

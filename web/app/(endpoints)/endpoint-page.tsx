@@ -12,6 +12,7 @@ export function EndpointPage({
   rows,
   columns,
   nlApi,
+  explainApi,
 }: {
   title: string;
   /** The REST calls behind the page, e.g. 'GET /v1/catalogs/products'. */
@@ -23,6 +24,8 @@ export function EndpointPage({
   columns: ColDef<Row>[];
   /** Enables the "Ask the ledger" natural-language filter box (stage 84). */
   nlApi?: string;
+  /** Enables the panel's on-demand AI explanation block (stage 85). */
+  explainApi?: string;
 }) {
   return (
     <main className="flex h-dvh flex-col bg-pp-canvas px-8 py-6 font-paypal text-pp-ink">
@@ -42,7 +45,7 @@ export function EndpointPage({
       </div>
       {note && <p className="mt-2 max-w-4xl text-sm text-pp-muted">{note}</p>}
       <div className="mt-5 flex min-h-0 flex-1 flex-col">
-        <DataGrid rows={rows} columns={columns} nlApi={nlApi} />
+        <DataGrid rows={rows} columns={columns} nlApi={nlApi} explainApi={explainApi} />
       </div>
     </main>
   );

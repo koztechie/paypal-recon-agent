@@ -46,7 +46,7 @@ If the question carries no filterable condition, output {} (all nulls).`;
 function stripFences(text: string): string {
 	const t = text.trim();
 	const m = t.match(/```(?:json)?\s*([\s\S]*?)```/);
-	return (m ? m[1] : t).trim();
+	return (m ? (m[1] ?? "") : t).trim();
 }
 
 const KINDS = new Set(["PAYMENT", "INVOICE", "EVENT"]);
@@ -102,12 +102,12 @@ export function fallbackParse(query: string): LedgerFilter {
 	else if (/\bpayments?\b/.test(q) || /\btransactions?\b/.test(q)) f.kind = "PAYMENT";
 
 	const over = q.match(/(?:over|above|more than|at least|>=?)\s*\$?\s*([\d.,]+)/);
-	if (over) f.amountMin = Number(over[1].replace(/,/g, ""));
+	if (over) f.amountMin = Number((over[1] ?? "").replace(/,/g, ""));
 	const under = q.match(/(?:under|below|less than|at most|<=?)\s*\$?\s*([\d.,]+)/);
-	if (under) f.amountMax = Number(under[1].replace(/,/g, ""));
+	if (under) f.amountMax = Number((under[1] ?? "").replace(/,/g, ""));
 
 	const cur = q.match(/\b(usd|eur|gbp|uah|cad|aud|chf|jpy)\b/);
-	if (cur) f.currency = cur[1].toUpperCase();
+	if (cur) f.currency = (cur[1] ?? "").toUpperCase();
 
 	if (/\bsent\b/.test(q)) f.status = "SENT";
 	else if (/\bpaid\b/.test(q)) f.status = "PAID";

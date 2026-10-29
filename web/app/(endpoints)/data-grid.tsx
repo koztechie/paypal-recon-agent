@@ -164,18 +164,80 @@ export function DataGrid({
   rows,
   columns,
   nlApi,
+  explainApi,
 }: {
   rows: Row[];
   columns: ColDef<Row>[];
   /** Endpoint that turns { query } into { ok, filter, source, ms } — enables the "Ask the ledger" box. */
   nlApi?: string;
+  /** Endpoint that turns { kind, ref } into { ok, explanation, source, ms } — enables the panel's AI block. */
+  explainApi?: string;
 }) {
   const [search, setSearch] = useState('');
   const [detail, setDetail] = useState<Row | null>(null);
   const [nlQuery, setNlQuery] = useState('');
   const [nlBusy, setNlBusy] = useState(false);
   const [nlNote, setNlNote] = useState<{ text: string; isError: boolean } | null>(null);
+  const [explain, setExplain] = useState<{
+    status: 'loading' | 'done' | 'error';
+    text?: string;
+    source?: string;
+    ms?: number;
+    at?: string;
+  } | null>(null);
   const apiRef = useRef<GridApi<Row> | null>(null);
+  // Guards against a stale answer: if the user clicks another row while one is
+  // loading, the late response must not land on the new row's panel.
+  const explainForRef = useRef<string | null>(null);
+
+  // AI explanation of the selected row (stage 85): automatic for payments/invoices.
+  const loadExplain = async (kind: string, ref: string) => {
+    if (!explainApi) return;
+    const key = `${kind}:${ref}`;
+    explainForRef.current = key;
+    setExplain({ status: 'loading' });
+    try {
+      const res = await fetch(explainApi, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind, ref }),
+        signal: AbortSignal.timeout(40_000),
+      });
+      const data = (await res.json()) as {
+        ok?: boolean;
+        error?: string;
+        explanation?: string;
+        source?: string;
+        ms?: number;
+      };
+      if (explainForRef.current !== key) return; // the user moved on
+      if (!data.ok || !data.explanation) throw new Error(data.error ?? 'no explanation');
+      setExplain({
+        status: 'done',
+        text: data.explanation,
+        source: data.source,
+        ms: data.ms,
+        at: new Date().toISOString().slice(0, 16).replace('T', ' '),
+      });
+    } catch (err) {
+      if (explainForRef.current !== key) return;
+      setExplain({
+        status: 'error',
+        text: err instanceof Error ? err.message : String(err),
+      });
+    }
+  };
+
+  useEffect(() => {
+    const kind = typeof detail?.kind === 'string' ? detail.kind : '';
+    const ref = typeof detail?.ref === 'string' ? detail.ref : '';
+    if (explainApi && (kind === 'PAYMENT' || kind === 'INVOICE') && ref) {
+      void loadExplain(kind, ref);
+    } else {
+      setExplain(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detail, explainApi]);
 
   // Natural language -> grid filters (stage 84 ★).
   const askLedger = async (e: FormEvent) => {
@@ -351,6 +413,49 @@ export function DataGrid({
               </Fragment>
             ))}
           </dl>
+          {explainApi && (detail.kind === 'PAYMENT' || detail.kind === 'INVOICE') && (
+            <div className="mt-3 border-t border-pp-border pt-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-pp-muted">AI</h3>
+                {explain?.status === 'done' && (
+                  <button
+                    type="button"
+                    onClick={() => loadExplain(String(detail.kind), String(detail.ref))}
+                    aria-label="Regenerate AI explanation"
+                    className="rounded px-1.5 text-sm text-pp-muted hover:bg-pp-highlight hover:text-pp-ink"
+                    title="Ask the AI again"
+                  >
+                    ↻
+                  </button>
+                )}
+              </div>
+              {explain?.status === 'loading' && (
+                <p className="mt-1 text-sm text-pp-muted" role="status">
+                  Explaining…
+                </p>
+              )}
+              {explain?.status === 'error' && (
+                <p role="alert" className="mt-1 text-sm text-pp-danger">
+                  Explanation failed: {explain.text}{' '}
+                  <button
+                    type="button"
+                    onClick={() => loadExplain(String(detail.kind), String(detail.ref))}
+                    className="text-pp-blue underline"
+                  >
+                    retry
+                  </button>
+                </p>
+              )}
+              {explain?.status === 'done' && (
+                <>
+                  <p className="mt-1 text-sm leading-relaxed text-pp-ink">{explain.text}</p>
+                  <p className="mt-1 text-xs text-pp-muted">
+                    {explain.at} · via {explain.source} · {((explain.ms ?? 0) / 1000).toFixed(1)}s
+                  </p>
+                </>
+              )}
+            </div>
+          )}
           {payloadPretty && (
             <>
               <h3 className="mt-3 text-sm font-semibold text-pp-muted">Raw webhook payload</h3>
