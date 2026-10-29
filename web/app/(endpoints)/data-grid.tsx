@@ -458,7 +458,12 @@ export function DataGrid({
             getRowClass={(p: { data?: Row }) =>
               p.data && p.data === detail ? 'row-detail-selected' : ''
             }
-            onGridReady={(e) => (apiRef.current = e.api)}
+            onGridReady={(e) => {
+              apiRef.current = e.api;
+              // Bench/debug hook (stage 89): lets the console and the perf test drive
+              // the grid directly (setGridOption etc.). Harmless in production.
+              (window as { __ledgerGrid?: GridApi<Row> }).__ledgerGrid = e.api;
+            }}
             onRowClicked={onRowClicked}
           />
         </AgGridProvider>

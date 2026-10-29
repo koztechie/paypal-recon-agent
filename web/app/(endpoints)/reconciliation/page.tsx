@@ -19,9 +19,15 @@ type LedgerRow = {
 
 const API = process.env.INTERNAL_API_URL ?? 'http://localhost:3000';
 
-export default async function ReconciliationLedgerPage() {
+export default async function ReconciliationLedgerPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ bench?: string }>;
+}) {
   await connection();
-  const res = await fetch(`${API}/api/recon/rows`, { cache: 'no-store' });
+  const bench = (await searchParams)?.bench;
+  const benchParam = bench && /^\d+$/.test(bench) ? `?bench=${bench}` : "";
+  const res = await fetch(`${API}/api/recon/rows${benchParam}`, { cache: 'no-store' });
   if (!res.ok) {
     // Surfaced by app/(endpoints)/error.tsx with a retry button.
     throw new Error(`GET /api/recon/rows failed: HTTP ${res.status}`);

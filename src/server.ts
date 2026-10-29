@@ -79,9 +79,46 @@ const server = createServer((req, res) => {
 	}
 
 	// Unified ledger for the AG Grid dashboard (stage 80): payments + invoices + events.
+	// `?bench=N` (1..5000) returns N deterministic synthetic rows instead — the
+	// performance fixture for stage 89 (1000 rows without freezes). Synthetic refs are
+	// prefixed BENCH- so they can never be mistaken for real records.
 	if (req.method === "GET" && url.split("?")[0] === "/api/recon/rows") {
 		try {
 			const rows: Array<Record<string, unknown>> = [];
+			const benchMatch = /[?&]bench=(\d+)/.exec(url);
+			if (benchMatch) {
+				const n = Math.min(Math.max(Number(benchMatch[1]), 1), 5000);
+				const recons = ["MATCHED", "REVIEW", "UNMATCHED", "PENDING"];
+				const currencies = ["USD", "EUR", "GBP", "UAH"];
+				const statuses = ["COMPLETED", "PENDING", "FAILED", "REFUNDED"];
+				// Deterministic LCG — the same n always yields the same rows.
+				let seed = 42;
+				const rnd = () => (seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296;
+				for (let i = 0; i < n; i++) {
+					const amount = Math.round((10 + rnd() * 990) * 100) / 100;
+					const fee = Math.round(amount * 0.034 * 100) / 100;
+					const day = 1 + Math.floor(rnd() * 28);
+					const hour = Math.floor(rnd() * 24);
+					rows.push({
+						kind: "PAYMENT",
+						ref: `BENCH-PAY-${String(i + 1).padStart(5, "0")}`,
+						status: statuses[Math.floor(rnd() * statuses.length)],
+						recon: recons[Math.floor(rnd() * recons.length)],
+						amount: amount.toFixed(2),
+						fee: fee.toFixed(2),
+						variance: (Math.floor(rnd() * 3) - 1 === 0 ? (rnd() * 10).toFixed(2) : "0.00"),
+						currency: currencies[Math.floor(rnd() * currencies.length)],
+						at: `2026-10-${String(day).padStart(2, "0")}T${String(hour).padStart(2, "0")}:${String(Math.floor(rnd() * 60)).padStart(2, "0")}:00Z`,
+						note: `Synthetic benchmark row ${i + 1} (stage 89 fixture) — amount ${amount} reconciled against the seeded ledger generator.`,
+					});
+				}
+				res.writeHead(200, {
+					"Content-Type": "application/json",
+					"Access-Control-Allow-Origin": "*",
+				});
+				res.end(JSON.stringify({ rows, bench: n }));
+				return;
+			}
 			const pay = getDb()
 				.prepare(
 					`SELECT p.paypal_payment_id ref, p.currency, p.amount_minor, p.fee_minor, p.net_minor,
