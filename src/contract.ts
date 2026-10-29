@@ -12,6 +12,7 @@
  * Zero runtime dependencies: hand-rolled validation (no schema library).
  */
 import { chat } from "./llm.ts";
+import { logAgentAction } from "./auditlog.ts";
 import { createDraftInvoice, type InvoiceResult } from "./invoicing.ts";
 import type { ToolkitTools } from "./paypal.ts";
 import type { NegotiationConfig, NegotiationResult } from "./negotiation.ts";
@@ -197,13 +198,25 @@ export async function createInvoiceFromContract(
 	tools: ToolkitTools,
 	contract: Contract,
 ): Promise<ContractInvoice> {
+	const refuse: (reason: string) => never = (reason) => {
+		// Stage 98: refused attempts are logged too (SECURITY rule 3).
+		logAgentAction({
+			action: "create_invoice",
+			limitCheck: "BLOCKED",
+			targetRef: typeof contract?.id === "string" ? contract.id : "(no contract)",
+			executed: false,
+			llmDecision: `blocked: ${reason}`,
+		});
+		throw new Error(`refused: ${reason}`);
+	};
+
 	const check = validateContract(contract);
 	if (!check.ok) {
-		throw new Error(`refused: invalid contract (${check.errors.join(", ")})`);
+		refuse(`invalid contract (${check.errors.join(", ")})`);
 	}
 	const buyerEmail = contract.parties.buyer_email;
 	if (!buyerEmail) {
-		throw new Error("refused: contract has no parties.buyer_email");
+		refuse("contract has no parties.buyer_email");
 	}
 	const amount = (contract.price.total_minor / 100).toFixed(2);
 	const termsNote = `net ${contract.terms.days} days`;

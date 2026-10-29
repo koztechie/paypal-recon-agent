@@ -18,12 +18,15 @@ export interface NegotiationConfig {
 	buyerTargetMinor: number;
 	buyerMaxMinor: number;
 	sellerFloorMinor: number;
-	/** Hard cap on rounds (demo scenario: 3; stage 98 limit: 10). */
+	/** Hard cap on rounds (stage 98: the simulation may NEVER exceed MAX_ROUNDS). */
 	maxRounds: number;
 	currency?: string;
 	/** Payment terms for the contract derived from the deal (stage 95) — CODE-owned. */
 	paymentDays?: number;
 }
+
+/** Stage-98 hard limit: no configuration can ask for more negotiation rounds. */
+export const MAX_ROUNDS = 10;
 
 export interface NegotiationRound {
 	round: number;
@@ -107,15 +110,17 @@ async function ask(
  */
 export async function negotiate(cfg: NegotiationConfig): Promise<NegotiationResult> {
 	const currency = cfg.currency ?? "USD";
+	// Stage 98: the round cap is a HARD limit — clamp whatever the caller asks for.
+	const maxRounds = Math.max(1, Math.min(cfg.maxRounds, MAX_ROUNDS));
 	const rounds: NegotiationRound[] = [];
 	const transcript: string[] = [];
 	let settled = false;
 	let agreedMinor: number | undefined;
-	let reason = `round limit (${cfg.maxRounds}) reached`;
+	let reason = `round limit (${maxRounds}) reached`;
 
 	const clampSeller = (p: number) => Math.max(p, cfg.sellerFloorMinor);
 
-	for (let round = 1; round <= cfg.maxRounds && !settled; round++) {
+	for (let round = 1; round <= maxRounds && !settled; round++) {
 		if (round % 2 === 1) {
 			// --- buyer speaks: opening offer, or the acceptance once a counter fits ---
 			const agreed = agreedMinor; // snapshot (TS narrowing)
