@@ -8,6 +8,7 @@
 // plus a pretty-printed raw payload when the row carries one (webhook events).
 
 import { Fragment, useEffect, useRef, useState, type FormEvent } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   CellStyleModule,
   ClientSideRowModelModule,
@@ -165,6 +166,7 @@ export function DataGrid({
   columns,
   nlApi,
   explainApi,
+  actionApi,
 }: {
   rows: Row[];
   columns: ColDef<Row>[];
@@ -172,7 +174,10 @@ export function DataGrid({
   nlApi?: string;
   /** Endpoint that turns { kind, ref } into { ok, explanation, source, ms } — enables the panel's AI block. */
   explainApi?: string;
+  /** Endpoint that turns { action, kind, ref } into { ok, message } — enables the panel's action buttons. */
+  actionApi?: string;
 }) {
+  const router = useRouter();
   const [search, setSearch] = useState('');
   const [detail, setDetail] = useState<Row | null>(null);
   const [nlQuery, setNlQuery] = useState('');
@@ -185,6 +190,46 @@ export function DataGrid({
     ms?: number;
     at?: string;
   } | null>(null);
+  const [actionBusy, setActionBusy] = useState<string | null>(null);
+  const [actionNote, setActionNote] = useState<{ text: string; isError: boolean } | null>(null);
+
+  // Row actions (stage 86): guarded PayPal call / human resolution, then refresh the
+  // server-rendered grid so the new status shows up immediately.
+  const runAction = async (action: 'send_reminder' | 'mark_matched', kind: string, ref: string) => {
+    if (!actionApi || actionBusy) return;
+    setActionBusy(action);
+    setActionNote(null);
+    try {
+      const res = await fetch(actionApi, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, kind, ref }),
+        signal: AbortSignal.timeout(45_000),
+      });
+      const data = (await res.json()) as { ok?: boolean; message?: string; error?: string };
+      setActionNote({
+        text: data.ok ? (data.message ?? 'Done.') : (data.message ?? data.error ?? 'Refused.'),
+        isError: !data.ok,
+      });
+      if (data.ok) router.refresh(); // pull fresh rows: the status column updates
+    } catch (err) {
+      setActionNote({
+        text: err instanceof Error ? err.message : String(err),
+        isError: true,
+      });
+    } finally {
+      setActionBusy(null);
+    }
+  };
+
+  // Keep the open panel in sync when refreshed rows arrive (e.g. after an action).
+  useEffect(() => {
+    if (!detail) return;
+    const key = `${String(detail.kind)}:${String(detail.ref)}`;
+    const found = rows.find((r) => `${String(r.kind)}:${String(r.ref)}` === key);
+    if (found && found !== detail) setDetail(found);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows]);
   const apiRef = useRef<GridApi<Row> | null>(null);
   // Guards against a stale answer: if the user clicks another row while one is
   // loading, the late response must not land on the new row's panel.
@@ -456,6 +501,43 @@ export function DataGrid({
               )}
             </div>
           )}
+          {actionApi &&
+            ((detail.kind === 'INVOICE' && detail.status === 'SENT') ||
+              (detail.kind === 'PAYMENT' && detail.recon === 'REVIEW')) && (
+              <div className="mt-3 border-t border-pp-border pt-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  {detail.kind === 'INVOICE' && detail.status === 'SENT' && (
+                    <button
+                      type="button"
+                      onClick={() => runAction('send_reminder', 'INVOICE', String(detail.ref))}
+                      disabled={actionBusy !== null}
+                      className="h-9 rounded bg-pp-blue px-3 text-sm font-semibold text-white hover:bg-pp-blue-dark disabled:opacity-50"
+                    >
+                      {actionBusy === 'send_reminder' ? 'Sending…' : 'Send reminder'}
+                    </button>
+                  )}
+                  {detail.kind === 'PAYMENT' && detail.recon === 'REVIEW' && (
+                    <button
+                      type="button"
+                      onClick={() => runAction('mark_matched', 'PAYMENT', String(detail.ref))}
+                      disabled={actionBusy !== null}
+                      className="h-9 rounded border border-pp-blue px-3 text-sm font-semibold text-pp-blue hover:bg-pp-highlight disabled:opacity-50"
+                    >
+                      {actionBusy === 'mark_matched' ? 'Marking…' : 'Mark matched'}
+                    </button>
+                  )}
+                  {actionNote && (
+                    <span
+                      role="status"
+                      aria-live="polite"
+                      className={actionNote.isError ? 'text-xs text-pp-danger' : 'text-xs text-pp-success'}
+                    >
+                      {actionNote.text}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
           {payloadPretty && (
             <>
               <h3 className="mt-3 text-sm font-semibold text-pp-muted">Raw webhook payload</h3>

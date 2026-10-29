@@ -13,6 +13,7 @@ import {
 } from "./db.ts";
 import { parseLedgerQuery } from "./nl.ts";
 import { explainLedgerRow } from "./explain.ts";
+import { markRowMatched, sendRowReminder } from "./row-actions.ts";
 
 mkdirSync("logs", { recursive: true });
 
@@ -233,6 +234,72 @@ const server = createServer((req, res) => {
 			} catch (e) {
 				res.writeHead(500, { "Content-Type": "application/json", ...cors });
 				res.end(JSON.stringify({ ok: false, error: String(e) }));
+			}
+		});
+		return;
+	}
+
+	// Row actions from the Ledger UI (stage 86): guarded PayPal call / human resolution.
+	if (req.method === "POST" && url.split("?")[0] === "/api/action") {
+		let raw = "";
+		req.on("data", (chunk: Buffer) => {
+			raw += chunk.toString("utf8");
+			if (raw.length > 10_000) req.destroy();
+		});
+		req.on("end", async () => {
+			const cors = { "Access-Control-Allow-Origin": "*" };
+			try {
+				const body = JSON.parse(raw || "{}") as {
+					action?: unknown;
+					kind?: unknown;
+					ref?: unknown;
+				};
+				const action = typeof body.action === "string" ? body.action.trim() : "";
+				const kind = typeof body.kind === "string" ? body.kind.trim() : "";
+				const ref = typeof body.ref === "string" ? body.ref.trim() : "";
+				if (!ref || (action !== "send_reminder" && action !== "mark_matched")) {
+					res.writeHead(400, {
+						"Content-Type": "application/json",
+						...cors,
+					});
+					res.end(
+						JSON.stringify({
+							ok: false,
+							error: "action (send_reminder|mark_matched) and ref required",
+						}),
+					);
+					return;
+				}
+				let result;
+				if (action === "send_reminder" && kind === "INVOICE") {
+					result = await sendRowReminder(ref.slice(0, 120));
+				} else if (action === "mark_matched" && kind === "PAYMENT") {
+					result = markRowMatched(ref.slice(0, 120));
+				} else {
+					res.writeHead(400, {
+						"Content-Type": "application/json",
+						...cors,
+					});
+					res.end(
+						JSON.stringify({
+							ok: false,
+							error: "send_reminder requires kind=INVOICE; mark_matched requires kind=PAYMENT",
+						}),
+					);
+					return;
+				}
+				// Guardrail refusals are 200 with ok:false (the UI shows `message`);
+				// unexpected crashes surface as 500.
+				res.writeHead(200, { "Content-Type": "application/json", ...cors });
+				res.end(JSON.stringify(result));
+			} catch (e) {
+				res.writeHead(500, { "Content-Type": "application/json", ...cors });
+				res.end(
+					JSON.stringify({
+						ok: false,
+						error: e instanceof Error ? e.message.slice(0, 300) : String(e),
+					}),
+				);
 			}
 		});
 		return;

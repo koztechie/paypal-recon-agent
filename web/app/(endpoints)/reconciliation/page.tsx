@@ -41,6 +41,7 @@ export default async function ReconciliationLedgerPage() {
       rows={rows}
       nlApi="/api/nl"
       explainApi="/api/explain"
+      actionApi="/api/action"
       columns={[
         { field: 'kind', headerName: 'Type' },
         { field: 'ref', headerName: 'Reference' },

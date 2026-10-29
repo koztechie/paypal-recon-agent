@@ -13,6 +13,7 @@ export function EndpointPage({
   columns,
   nlApi,
   explainApi,
+  actionApi,
 }: {
   title: string;
   /** The REST calls behind the page, e.g. 'GET /v1/catalogs/products'. */
@@ -26,6 +27,8 @@ export function EndpointPage({
   nlApi?: string;
   /** Enables the panel's on-demand AI explanation block (stage 85). */
   explainApi?: string;
+  /** Enables the panel's guarded action buttons (stage 86). */
+  actionApi?: string;
 }) {
   return (
     <main className="flex h-dvh flex-col bg-pp-canvas px-8 py-6 font-paypal text-pp-ink">
@@ -45,7 +48,13 @@ export function EndpointPage({
       </div>
       {note && <p className="mt-2 max-w-4xl text-sm text-pp-muted">{note}</p>}
       <div className="mt-5 flex min-h-0 flex-1 flex-col">
-        <DataGrid rows={rows} columns={columns} nlApi={nlApi} explainApi={explainApi} />
+        <DataGrid
+          rows={rows}
+          columns={columns}
+          nlApi={nlApi}
+          explainApi={explainApi}
+          actionApi={actionApi}
+        />
       </div>
     </main>
   );
