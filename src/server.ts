@@ -14,6 +14,8 @@ import {
 import { parseLedgerQuery } from "./nl.ts";
 import { explainLedgerRow } from "./explain.ts";
 import { markRowMatched, sendRowReminder } from "./row-actions.ts";
+import { negotiate } from "./negotiation.ts";
+import { buildContract } from "./contract.ts";
 
 mkdirSync("logs", { recursive: true });
 
@@ -329,6 +331,77 @@ const server = createServer((req, res) => {
 				// unexpected crashes surface as 500.
 				res.writeHead(200, { "Content-Type": "application/json", ...cors });
 				res.end(JSON.stringify(result));
+			} catch (e) {
+				res.writeHead(500, { "Content-Type": "application/json", ...cors });
+				res.end(
+					JSON.stringify({
+						ok: false,
+						error: e instanceof Error ? e.message.slice(0, 300) : String(e),
+					}),
+				);
+			}
+		});
+		return;
+	}
+
+	// Module A UI (stage 99): run the two-agent negotiation for the demo config and,
+	// when it settles, attach the validated contract JSON (the "settled" button in
+	// the negotiation window reveals it).
+	if (req.method === "POST" && url.split("?")[0] === "/api/negotiate") {
+		const cors = { "Access-Control-Allow-Origin": "*" };
+		let raw = "";
+		req.on("data", (chunk: Buffer) => {
+			raw += chunk.toString("utf8");
+			if (raw.length > 10_000) req.destroy();
+		});
+		req.on("end", async () => {
+			try {
+				const cfg = {
+					item: "cross-border reconciliation report",
+					quantity: 10,
+					buyerTargetMinor: 40_000,
+					buyerMaxMinor: 46_000,
+					sellerFloorMinor: 45_000,
+					maxRounds: 3,
+					currency: "USD",
+					paymentDays: 7,
+				};
+				const result = await negotiate(cfg);
+				let contract: unknown = null;
+				if (result.settled && result.agreedMinor !== undefined) {
+					const transcript = result.rounds.map(
+						(r) => `${r.agent.toUpperCase()}: ${r.message}`,
+					);
+					try {
+						contract = await buildContract(result, cfg, transcript, {
+							...(process.env.SANDBOX_BUYER_EMAIL
+								? { buyerEmail: process.env.SANDBOX_BUYER_EMAIL }
+								: {}),
+						});
+					} catch (e) {
+						res.writeHead(200, { "Content-Type": "application/json", ...cors });
+						res.end(
+							JSON.stringify({
+								ok: true,
+								rounds: result.rounds,
+								settled: false,
+								reason: `contract failed: ${e instanceof Error ? e.message : String(e)}`,
+							}),
+						);
+						return;
+					}
+				}
+				res.writeHead(200, { "Content-Type": "application/json", ...cors });
+				res.end(
+					JSON.stringify({
+						ok: true,
+						rounds: result.rounds,
+						settled: result.settled,
+						agreedMinor: result.agreedMinor ?? null,
+						reason: result.reason,
+						contract,
+					}),
+				);
 			} catch (e) {
 				res.writeHead(500, { "Content-Type": "application/json", ...cors });
 				res.end(
