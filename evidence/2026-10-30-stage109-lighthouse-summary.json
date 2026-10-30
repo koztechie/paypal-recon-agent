@@ -1,0 +1,39 @@
+{
+ "date": "2026-10-30",
+ "lighthouse": "13.6.0",
+ "chrome": "Playwright Chromium 1248",
+ "runs": {
+  "/ (landing), default mobile throttling = weak-PC proxy": {
+   "score": 86,
+   "fcp": "0.9 s",
+   "lcp": "0.9 s",
+   "tbt": "540 ms",
+   "cls": "0",
+   "si": "2.3 s"
+  },
+  "/ (landing), desktop preset": {
+   "score": 100,
+   "fcp": "0.3 s",
+   "lcp": "0.3 s",
+   "tbt": "80 ms",
+   "cls": "0",
+   "si": "0.5 s"
+  },
+  "/reconciliation, mobile throttling": {
+   "score": 52,
+   "fcp": "1.1 s",
+   "lcp": "4.9 s",
+   "tbt": "3,300 ms",
+   "cls": "0",
+   "si": "3.4 s"
+  },
+  "/reconciliation, desktop preset": {
+   "score": 71,
+   "fcp": "0.4 s",
+   "lcp": "1.0 s",
+   "tbt": "680 ms",
+   "cls": "0",
+   "si": "1.6 s"
+  }
+ }
+}
