@@ -134,3 +134,18 @@ Date: 2026-10-30 (plan date 09.11 — early)
   evidence (masked values only).
 - Note for stages 118–120: prod ledger starts EMPTY — plan the webhook/demo flow
   accordingly (the stage-105 empty screen instructs a first run).
+
+## Stage 116 CLOSED (2026-10-30)
+- User set `BASE_URL=https://paypal-recon-agent.onrender.com` (Environment → Save)
+  and confirmed PAYPAL_CLIENT_ID/SECRET visually.
+- Environment-tab screenshot (user, in-session) shows **all 9 keys filled with
+  masked values**: BASE_URL, LLM_API_KEY, LLM_MODEL, LLM_PROVIDER, NODE_VERSION,
+  PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, PAYPAL_ENVIRONMENT, SANDBOX_BUYER_EMAIL.
+- Post-save probes (my independent re-check): `/health -> 200`;
+  `POST /api/nl-filter` -> correct filter, `source: llm, 1169 ms`;
+  `/api/app-config` -> sandbox / gemini gemini-3.5-flash-lite.
+- Marker "all variables filled" = MET. PayPal creds' functional test deferred to
+  stages 118–120 (first real PayPal call from prod), as planned.
+- Optional artifact: if convenient, drop the Environment screenshot into
+  `evidence/2026-11-09-stage116-render-env.png` (masked values only) — the in-session
+  confirmation above is the primary record meanwhile.
