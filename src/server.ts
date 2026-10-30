@@ -134,8 +134,7 @@ const server = createServer((req, res) => {
 			}
 			if (/[?&]count=1/.test(url)) {
 				const db = getDb();
-				const c = (sql: string) =>
-					(db.prepare(sql).get() as { c: number }).c;
+				const c = (sql: string) => (db.prepare(sql).get() as { c: number }).c;
 				const count =
 					c("SELECT COUNT(*) c FROM payments") +
 					c("SELECT COUNT(*) c FROM invoices") +
