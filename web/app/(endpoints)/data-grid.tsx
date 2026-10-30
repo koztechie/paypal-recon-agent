@@ -291,11 +291,20 @@ export function DataGrid({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detail, explainApi]);
 
-  // Natural language -> grid filters (stage 84 ★).
+  // Natural language -> grid filters (stage 84 ★), with clear user-error messages
+  // (stage 108): empty submit and unparseable queries answer with guidance, not
+  // silence; the busy state is the button label itself ("Thinking…").
   const askLedger = async (e: FormEvent) => {
     e.preventDefault();
     const query = nlQuery.trim();
-    if (!query || !nlApi || nlBusy) return;
+    if (!query) {
+      setNlNote({
+        text: 'Type a question first — e.g. "show unmatched payments over $50".',
+        isError: true,
+      });
+      return;
+    }
+    if (!nlApi || nlBusy) return;
     setNlBusy(true);
     setNlNote(null);
     try {
@@ -313,6 +322,14 @@ export function DataGrid({
         ms?: number;
       };
       if (!data.ok || !data.filter) throw new Error(data.error ?? 'no filter returned');
+      if (Object.keys(data.filter).length === 0) {
+        // Nothing filterable in the query — keep the grid untouched, explain why.
+        setNlNote({
+          text: 'Couldn’t find anything filterable in that — try e.g. "unmatched payments over $50" or "invoices with status SENT".',
+          isError: true,
+        });
+        return;
+      }
       const model = buildFilterModel(data.filter);
       apiRef.current?.setFilterModel(Object.keys(model).length ? (model as never) : null);
       setSearch(data.filter.quick ?? '');
@@ -448,7 +465,7 @@ export function DataGrid({
           />
           <button
             type="submit"
-            disabled={nlBusy || !nlQuery.trim()}
+            disabled={nlBusy}
             className="h-10 rounded bg-pp-blue px-4 text-sm font-semibold text-white hover:bg-pp-blue-dark disabled:opacity-50"
           >
             {nlBusy ? 'Thinking…' : 'Filter'}
