@@ -9,10 +9,18 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    template: "%s · PayPal × AG Grid",
-    default: "PayPal × AG Grid",
+    template: "%s · Cross-Border Reconciliation Agent",
+    default: "Cross-Border Reconciliation Agent",
   },
-  description: "PayPal sandbox data in AG Grid and AG Studio",
+  description:
+    "The seller's AI agent that reconciles every PayPal payment, explains every mismatch, and acts — inside hard guardrails. PayPal sandbox × AG Grid × AG Studio.",
+  applicationName: "Cross-Border Reconciliation Agent",
+  openGraph: {
+    title: "Cross-Border Reconciliation Agent",
+    description:
+      "The seller's AI agent that reconciles every PayPal payment, explains every mismatch, and acts — inside hard guardrails.",
+    type: "website",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
