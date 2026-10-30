@@ -59,3 +59,18 @@ Date: 2026-10-30 (plan date 09.11 — early)
 - Plan row115 will be marked **⏳ ЧЕКАЄ НА ДІЇ КОРИСТУВАЧА** (не DONE): маркер має
   дві складові, обидві — у браузері користувача. Після виконання кроків A+B я
   перевірю `/health` по публічному URL (етап117) і закрию115.
+
+## Attempt log (2026-10-30, user)
+- First claim attempt from the browser failed on the portal page (logged in as
+  koztechie@proton.me): **"Could not issue code — Origin not allowed"** (red status
+  box, "Try again" gives the same result).
+- Verified: the claim URL is exactly the official one from Devpost
+  (`https://credits-portal-mmdm.onrender.com/claim/paypal-ai-hackathon`, href confirmed
+  on paypalaihackathon.devpost.com/details/render) — the link is NOT the problem.
+- Diagnosis: the portal validates the HTTP Origin of the code-issue request; the
+  failure means the browser (or an extension/proxy/webview) sent a missing/altered
+  Origin. Not documented anywhere public — environmental/portal-side.
+- Troubleshooting ladder issued to the user (clean Chrome profile → normal window →
+  privacy/translate extensions off → cookies → sign out/in). Official support paths
+  per the sponsor page: Render Discord (https://render.com/discord), PayPal Discord,
+  or devrel+credits@render.com (address shown on the failing page itself).
