@@ -5,17 +5,21 @@
  */
 import { appendFileSync, mkdirSync } from "node:fs";
 import { createServer } from "node:http";
+import { buildContract } from "./contract.ts";
 import {
 	getDb,
 	insertPaymentFromEvent,
 	insertPaymentFromInvoiceEvent,
 	insertWebhookEvent,
 } from "./db.ts";
-import { parseLedgerQuery } from "./nl.ts";
 import { explainLedgerRow } from "./explain.ts";
-import { markRowMatched, sendRowReminder } from "./row-actions.ts";
 import { negotiate } from "./negotiation.ts";
-import { buildContract } from "./contract.ts";
+import { parseLedgerQuery } from "./nl.ts";
+import {
+	markRowMatched,
+	type RowActionResult,
+	sendRowReminder,
+} from "./row-actions.ts";
 
 mkdirSync("logs", { recursive: true });
 
@@ -95,7 +99,10 @@ const server = createServer((req, res) => {
 				const statuses = ["COMPLETED", "PENDING", "FAILED", "REFUNDED"];
 				// Deterministic LCG — the same n always yields the same rows.
 				let seed = 42;
-				const rnd = () => (seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296;
+				const rnd = () => {
+					seed = (seed * 1664525 + 1013904223) % 4294967296;
+					return seed / 4294967296;
+				};
 				for (let i = 0; i < n; i++) {
 					const amount = Math.round((10 + rnd() * 990) * 100) / 100;
 					const fee = Math.round(amount * 0.034 * 100) / 100;
@@ -108,7 +115,10 @@ const server = createServer((req, res) => {
 						recon: recons[Math.floor(rnd() * recons.length)],
 						amount: amount.toFixed(2),
 						fee: fee.toFixed(2),
-						variance: (Math.floor(rnd() * 3) - 1 === 0 ? (rnd() * 10).toFixed(2) : "0.00"),
+						variance:
+							Math.floor(rnd() * 3) - 1 === 0
+								? (rnd() * 10).toFixed(2)
+								: "0.00",
 						currency: currencies[Math.floor(rnd() * currencies.length)],
 						at: `2026-10-${String(day).padStart(2, "0")}T${String(hour).padStart(2, "0")}:${String(Math.floor(rnd() * 60)).padStart(2, "0")}:00Z`,
 						note: `Synthetic benchmark row ${i + 1} (stage 89 fixture) — amount ${amount} reconciled against the seeded ledger generator.`,
@@ -138,9 +148,7 @@ const server = createServer((req, res) => {
 					amount: (Number(p.amount_minor) / 100).toFixed(2),
 					fee: (Number(p.fee_minor) / 100).toFixed(2),
 					net:
-						p.net_minor != null
-							? (Number(p.net_minor) / 100).toFixed(2)
-							: "",
+						p.net_minor != null ? (Number(p.net_minor) / 100).toFixed(2) : "",
 					variance:
 						p.variance != null ? (Number(p.variance) / 100).toFixed(2) : "",
 					currency: p.currency,
@@ -215,8 +223,7 @@ const server = createServer((req, res) => {
 			const cors = { "Access-Control-Allow-Origin": "*" };
 			try {
 				const body = JSON.parse(raw || "{}") as { query?: unknown };
-				const query =
-					typeof body.query === "string" ? body.query.trim() : "";
+				const query = typeof body.query === "string" ? body.query.trim() : "";
 				if (!query) {
 					res.writeHead(400, {
 						"Content-Type": "application/json",
@@ -246,7 +253,10 @@ const server = createServer((req, res) => {
 		req.on("end", async () => {
 			const cors = { "Access-Control-Allow-Origin": "*" };
 			try {
-				const body = JSON.parse(raw || "{}") as { kind?: unknown; ref?: unknown };
+				const body = JSON.parse(raw || "{}") as {
+					kind?: unknown;
+					ref?: unknown;
+				};
 				const kind = typeof body.kind === "string" ? body.kind.trim() : "";
 				const ref = typeof body.ref === "string" ? body.ref.trim() : "";
 				if (!kind || !ref || (kind !== "PAYMENT" && kind !== "INVOICE")) {
@@ -293,7 +303,8 @@ const server = createServer((req, res) => {
 					kind?: unknown;
 					ref?: unknown;
 				};
-				const action = typeof body.action === "string" ? body.action.trim() : "";
+				const action =
+					typeof body.action === "string" ? body.action.trim() : "";
 				const kind = typeof body.kind === "string" ? body.kind.trim() : "";
 				const ref = typeof body.ref === "string" ? body.ref.trim() : "";
 				if (!ref || (action !== "send_reminder" && action !== "mark_matched")) {
@@ -309,7 +320,7 @@ const server = createServer((req, res) => {
 					);
 					return;
 				}
-				let result;
+				let result: RowActionResult;
 				if (action === "send_reminder" && kind === "INVOICE") {
 					result = await sendRowReminder(ref.slice(0, 120));
 				} else if (action === "mark_matched" && kind === "PAYMENT") {
@@ -322,7 +333,8 @@ const server = createServer((req, res) => {
 					res.end(
 						JSON.stringify({
 							ok: false,
-							error: "send_reminder requires kind=INVOICE; mark_matched requires kind=PAYMENT",
+							error:
+								"send_reminder requires kind=INVOICE; mark_matched requires kind=PAYMENT",
 						}),
 					);
 					return;
@@ -432,7 +444,11 @@ const server = createServer((req, res) => {
               SUM(CASE WHEN executed=1 THEN 1 ELSE 0 END) executed
        FROM agent_actions`,
 				)
-				.get() as { total: number; blocked: number | null; executed: number | null };
+				.get() as {
+				total: number;
+				blocked: number | null;
+				executed: number | null;
+			};
 			res.writeHead(200, {
 				"Content-Type": "application/json",
 				"Access-Control-Allow-Origin": "*",

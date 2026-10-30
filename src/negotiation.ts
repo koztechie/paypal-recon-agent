@@ -44,7 +44,9 @@ export interface NegotiationResult {
 
 const usd = (minor: number) => `$${(minor / 100).toFixed(2)}`;
 
-function parseOffer(text: string): { message: string; priceMinor: number } | null {
+function parseOffer(
+	text: string,
+): { message: string; priceMinor: number } | null {
 	try {
 		const start = text.indexOf("{");
 		const end = text.lastIndexOf("}");
@@ -79,7 +81,6 @@ included). Be brief and professional (one or two sentences).
 Reply with STRICT JSON only: {"message": string, "offer_usd": number} (offer_usd in dollars).`;
 
 async function ask(
-	role: "buyer" | "seller",
 	system: string,
 	transcript: string,
 	fallback: { message: string; priceMinor: number },
@@ -93,7 +94,10 @@ async function ask(
 			timeoutMs: 14_000,
 		});
 		const parsed = parseOffer(r.text);
-		if (parsed && (mustMatch === undefined || parsed.priceMinor === mustMatch)) {
+		if (
+			parsed &&
+			(mustMatch === undefined || parsed.priceMinor === mustMatch)
+		) {
 			// Enforce the hard limits even if the model oversteps.
 			return { ...parsed, viaLlm: true };
 		}
@@ -108,7 +112,9 @@ async function ask(
  * soon as the seller's counter fits its authorization (settled), or the run stops
  * at maxRounds.
  */
-export async function negotiate(cfg: NegotiationConfig): Promise<NegotiationResult> {
+export async function negotiate(
+	cfg: NegotiationConfig,
+): Promise<NegotiationResult> {
 	const currency = cfg.currency ?? "USD";
 	// Stage 98: the round cap is a HARD limit — clamp whatever the caller asks for.
 	const maxRounds = Math.max(1, Math.min(cfg.maxRounds, MAX_ROUNDS));
@@ -130,7 +136,6 @@ export async function negotiate(cfg: NegotiationConfig): Promise<NegotiationResu
 					priceMinor: agreed,
 				};
 				const reply = await ask(
-					"buyer",
 					`${BUYER_SYSTEM(cfg)}\nThe seller's current price is ${usd(agreed)} — it fits your
 authorization. ACCEPT NOW: write a short acceptance message that echoes their price
 (e.g. "Deal — ${usd(agreed)} ..."), set offer_usd to ${agreed / 100}, do NOT counter-offer.`,
@@ -138,7 +143,12 @@ authorization. ACCEPT NOW: write a short acceptance message that echoes their pr
 					fallback,
 					agreed, // deterministic guard: any other price -> scripted acceptance
 				);
-				rounds.push({ round, agent: "buyer", message: reply.message, priceMinor: agreed });
+				rounds.push({
+					round,
+					agent: "buyer",
+					message: reply.message,
+					priceMinor: agreed,
+				});
 				transcript.push(`BUYER: ${reply.message} (accepts ${usd(agreed)})`);
 				settled = true;
 				reason = "buyer accepted the seller's counter";
@@ -150,22 +160,31 @@ authorization. ACCEPT NOW: write a short acceptance message that echoes their pr
 				priceMinor: cfg.buyerTargetMinor,
 			};
 			const reply = await ask(
-				"buyer",
 				BUYER_SYSTEM(cfg),
 				transcript.join("\n"),
 				openFallback,
 			);
 			const priceMinor = Math.min(reply.priceMinor, cfg.buyerMaxMinor);
-			rounds.push({ round, agent: "buyer", message: reply.message, priceMinor });
+			rounds.push({
+				round,
+				agent: "buyer",
+				message: reply.message,
+				priceMinor,
+			});
 			transcript.push(`BUYER: ${reply.message} (offers ${usd(priceMinor)})`);
 		} else {
 			// --- seller speaks: one counter at (or above) its floor ---
-			const offer = await ask("seller", SELLER_SYSTEM(cfg), transcript.join("\n"), {
+			const offer = await ask(SELLER_SYSTEM(cfg), transcript.join("\n"), {
 				message: `Our floor is ${usd(cfg.sellerFloorMinor)} for the batch, delivery included — final price.`,
 				priceMinor: cfg.sellerFloorMinor,
 			});
 			const priceMinor = clampSeller(offer.priceMinor);
-			rounds.push({ round, agent: "seller", message: offer.message, priceMinor });
+			rounds.push({
+				round,
+				agent: "seller",
+				message: offer.message,
+				priceMinor,
+			});
 			transcript.push(`SELLER: ${offer.message} (quotes ${usd(priceMinor)})`);
 
 			// A counter within the buyer's authorization sets the agreement candidate;

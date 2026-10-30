@@ -92,7 +92,8 @@ function paymentFacts(ref: string): Facts | null {
 
 	const closest = candidates[0] ?? null;
 
-	let fallback: string;	if (reconStatus === "MATCHED") {
+	let fallback: string;
+	if (reconStatus === "MATCHED") {
 		fallback = `MATCHED${rec?.match_method ? ` by ${rec.match_method}` : ""}: payment ${p.paypal_payment_id} (${amount}) corresponds to ${
 			linkedInv ? invDesc(linkedInv) : "an invoice"
 		}; variance ${money(Number(rec?.variance_minor ?? 0), String(p.currency))}.`;
@@ -142,7 +143,10 @@ function invoiceFacts(ref: string): Facts | null {
 		`invoice ${inv.invoice_number ?? inv.paypal_invoice_id}: total ${total}, status ${inv.status}, buyer ${inv.buyer_email ?? "unknown"}, issued ${inv.issued_at ?? "unknown"}`,
 		payments.length
 			? `linked payments: ${payments
-					.map((p) => `${p.paypal_payment_id} (${money(Number(p.amount_minor), String(p.currency))}, ${p.status})`)
+					.map(
+						(p) =>
+							`${p.paypal_payment_id} (${money(Number(p.amount_minor), String(p.currency))}, ${p.status})`,
+					)
 					.join("; ")}`
 			: "no payments linked yet",
 	];
@@ -154,7 +158,11 @@ function invoiceFacts(ref: string): Facts | null {
 				? `Status ${inv.status}: invoice ${inv.invoice_number ?? inv.paypal_payment_id} (${total}) has ${payments.length} linked payment(s); the sum may not cover the total yet.`
 				: `Status ${inv.status}: invoice ${inv.invoice_number ?? inv.paypal_payment_id} (${total}) has no linked payments yet.`;
 
-	return { title: `INVOICE ${inv.invoice_number ?? inv.paypal_invoice_id} — ${inv.status}`, lines, fallback };
+	return {
+		title: `INVOICE ${inv.invoice_number ?? inv.paypal_invoice_id} — ${inv.status}`,
+		lines,
+		fallback,
+	};
 }
 
 const SYSTEM = `You are the reconciliation analyst of a PayPal payments agent.
@@ -170,7 +178,11 @@ export async function explainLedgerRow(
 ): Promise<ExplainResult | null> {
 	const t0 = Date.now();
 	const facts =
-		kind === "PAYMENT" ? paymentFacts(ref) : kind === "INVOICE" ? invoiceFacts(ref) : null;
+		kind === "PAYMENT"
+			? paymentFacts(ref)
+			: kind === "INVOICE"
+				? invoiceFacts(ref)
+				: null;
 	if (!facts) return null;
 
 	const user = `${facts.title}\n${facts.lines.map((l) => `- ${l}`).join("\n")}`;
@@ -185,9 +197,16 @@ export async function explainLedgerRow(
 
 	const winner = await Promise.race([
 		llm,
-		new Promise<null>((resolve) => setTimeout(() => resolve(null), deadlineMs + 500)),
+		new Promise<null>((resolve) =>
+			setTimeout(() => resolve(null), deadlineMs + 500),
+		),
 	]);
 
-	if (winner) return { explanation: winner, source: "llm", ms: Date.now() - t0 };
-	return { explanation: facts.fallback, source: "fallback", ms: Date.now() - t0 };
+	if (winner)
+		return { explanation: winner, source: "llm", ms: Date.now() - t0 };
+	return {
+		explanation: facts.fallback,
+		source: "fallback",
+		ms: Date.now() - t0,
+	};
 }

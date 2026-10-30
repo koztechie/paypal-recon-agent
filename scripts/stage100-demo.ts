@@ -4,15 +4,16 @@
  * confirmations to BOTH agents. This script IS the demo (npm run demo); the stage
  * video records one run of it.
  */
-import { buildContract, createInvoiceFromContract } from "../src/contract.ts";
+
 import { confirmPaymentToAgents, readAgentView } from "../src/confirmation.ts";
-import { negotiate } from "../src/negotiation.ts";
+import { buildContract, createInvoiceFromContract } from "../src/contract.ts";
 import {
+	type InvoiceResult,
 	parseToolResult,
 	recordExternalPayment,
 	sendInvoice,
-	type InvoiceResult,
 } from "../src/invoicing.ts";
+import { negotiate } from "../src/negotiation.ts";
 import { createPaypalToolkit } from "../src/paypal.ts";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -34,33 +35,49 @@ const cfg = {
 };
 
 console.log("=== Module A demo: two agents pay each other ===");
-console.log("scenario: 10 x cross-border reconciliation report (DEMO-SCENARIO.md)\n");
+console.log(
+	"scenario: 10 x cross-border reconciliation report (DEMO-SCENARIO.md)\n",
+);
 await sleep(2500);
 
 // --- 1) negotiation (two LLM agents) ---------------------------------------
-console.log("[1/5] negotiating (buyer authorization $460, seller floor $450)...");
+console.log(
+	"[1/5] negotiating (buyer authorization $460, seller floor $450)...",
+);
 const result = await negotiate(cfg);
 for (const r of result.rounds) {
-	console.log(`  ${r.agent.toUpperCase()} R${r.round}: "${r.message}"  (${money(r.priceMinor)})`);
+	console.log(
+		`  ${r.agent.toUpperCase()} R${r.round}: "${r.message}"  (${money(r.priceMinor)})`,
+	);
 	await sleep(2000);
 }
 if (!result.settled || result.agreedMinor === undefined) {
 	console.log(`ABORT: not settled (${result.reason})`);
 	process.exit(1);
 }
-console.log(`  -> SETTLED at ${money(result.agreedMinor)} after ${result.rounds.length} rounds`);
+console.log(
+	`  -> SETTLED at ${money(result.agreedMinor)} after ${result.rounds.length} rounds`,
+);
 await sleep(4500);
 
 // --- 2) contract ------------------------------------------------------------
-const transcript = result.rounds.map((r) => `${r.agent.toUpperCase()}: ${r.message}`);
+const transcript = result.rounds.map(
+	(r) => `${r.agent.toUpperCase()}: ${r.message}`,
+);
 const contract = await buildContract(result, cfg, transcript, { buyerEmail });
-console.log(`\n[2/5] contract ${contract.id}: ${money(contract.price.total_minor)} ${contract.subject.currency}, net ${contract.terms.days} days  [VALID]`);
+console.log(
+	`\n[2/5] contract ${contract.id}: ${money(contract.price.total_minor)} ${contract.subject.currency}, net ${contract.terms.days} days  [VALID]`,
+);
 await sleep(4000);
 
 // --- 3) invoice (seller side, core shell) ----------------------------------
 const tools = createPaypalToolkit().getTools();
 const inv = await createInvoiceFromContract(tools, contract);
-await sendInvoice(tools, inv.invoiceId, `Contract ${contract.id}: ${inv.termsNote}.`);
+await sendInvoice(
+	tools,
+	inv.invoiceId,
+	`Contract ${contract.id}: ${inv.termsNote}.`,
+);
 console.log(`\n[3/5] seller agent sends PayPal invoice ${inv.invoiceId}`);
 console.log(`        ${inv.amount} ${inv.currency} to ${inv.buyerEmail}`);
 await sleep(3500);
@@ -79,7 +96,10 @@ const after = parseToolResult(
 		tools.get_invoice as unknown as {
 			execute: (a: unknown, o: unknown) => Promise<unknown>;
 		}
-	).execute({ invoice_id: inv.invoiceId }, { toolCallId: "demo-get", messages: [] }),
+	).execute(
+		{ invoice_id: inv.invoiceId },
+		{ toolCallId: "demo-get", messages: [] },
+	),
 ) as InvoiceResult;
 const invoiceStatus = String(after.status ?? paid.status ?? "UNKNOWN");
 console.log(`  -> invoice ${inv.invoiceId} is now ${invoiceStatus}`);
@@ -99,10 +119,17 @@ await sleep(2000);
 console.log(`  seller: "${sellerMsg.message}"`);
 const buyerView = readAgentView("buyer", contract.id);
 const sellerView = readAgentView("seller", contract.id);
-console.log(`  (buyer view: ${buyerView.length} msg, seller view: ${sellerView.length} msg)`);
+console.log(
+	`  (buyer view: ${buyerView.length} msg, seller view: ${sellerView.length} msg)`,
+);
 await sleep(1500);
 
 const secs = ((Date.now() - t0) / 1000).toFixed(1);
-const ok = buyerView.length > 0 && sellerView.length > 0 && ["PAID", "MARKED_AS_PAID"].includes(invoiceStatus);
-console.log(`\n=== DONE in ${secs}s — ${ok ? "two agents paid each other: PROVEN" : "FAILED"} ===`);
+const ok =
+	buyerView.length > 0 &&
+	sellerView.length > 0 &&
+	["PAID", "MARKED_AS_PAID"].includes(invoiceStatus);
+console.log(
+	`\n=== DONE in ${secs}s — ${ok ? "two agents paid each other: PROVEN" : "FAILED"} ===`,
+);
 process.exit(ok ? 0 : 1);

@@ -3,7 +3,7 @@ import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { test } from "node:test";
 
-async function probeHealth(port: number, tries = 40): Promise<Response> {
+async function probeHealth(port: number, tries = 100): Promise<Response> {
 	let lastErr: unknown;
 	for (let i = 0; i < tries; i++) {
 		try {

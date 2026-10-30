@@ -66,13 +66,16 @@ export function confirmPaymentToAgents(input: {
 	};
 
 	mkdirSync("logs", { recursive: true });
-	const lines = [buyer, seller].map((m) => JSON.stringify(m)).join("\n") + "\n";
+	const lines = `${[buyer, seller].map((m) => JSON.stringify(m)).join("\n")}\n`;
 	appendFileSync(LOG, lines);
 	return [buyer, seller];
 }
 
 /** What one agent can see: its own messages for a contract (from the shared log). */
-export function readAgentView(agent: AgentRole, contractId: string): AgentMessage[] {
+export function readAgentView(
+	agent: AgentRole,
+	contractId: string,
+): AgentMessage[] {
 	try {
 		return readFileSync(LOG, "utf8")
 			.split("\n")

@@ -59,7 +59,8 @@ export function normalizeFilter(raw: unknown): LedgerFilter {
 	}
 	const o = raw as Record<string, unknown>;
 	const f: LedgerFilter = {};
-	const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
+	const str = (v: unknown) =>
+		typeof v === "string" && v.trim() ? v.trim() : undefined;
 	const num = (v: unknown) =>
 		typeof v === "number" && Number.isFinite(v)
 			? v
@@ -80,9 +81,11 @@ export function normalizeFilter(raw: unknown): LedgerFilter {
 	const amountMax = num(o.amountMax);
 	if (amountMax !== undefined) f.amountMax = amountMax;
 	const dateFrom = str(o.dateFrom);
-	if (dateFrom && /^\d{4}-\d{2}-\d{2}/.test(dateFrom)) f.dateFrom = dateFrom.slice(0, 10);
+	if (dateFrom && /^\d{4}-\d{2}-\d{2}/.test(dateFrom))
+		f.dateFrom = dateFrom.slice(0, 10);
 	const dateTo = str(o.dateTo);
-	if (dateTo && /^\d{4}-\d{2}-\d{2}/.test(dateTo)) f.dateTo = dateTo.slice(0, 10);
+	if (dateTo && /^\d{4}-\d{2}-\d{2}/.test(dateTo))
+		f.dateTo = dateTo.slice(0, 10);
 	const quick = str(o.quick);
 	if (quick) f.quick = quick.slice(0, 80);
 	return f;
@@ -94,16 +97,22 @@ export function fallbackParse(query: string): LedgerFilter {
 	const f: LedgerFilter = {};
 	if (/\bunmatched\b/.test(q)) f.recon = "UNMATCHED";
 	else if (/\bmatched\b/.test(q)) f.recon = "MATCHED";
-	else if (/\breview\b/.test(q) || /\bneeds review\b/.test(q)) f.recon = "REVIEW";
+	else if (/\breview\b/.test(q) || /\bneeds review\b/.test(q))
+		f.recon = "REVIEW";
 	else if (/\bpending\b/.test(q)) f.recon = "PENDING";
 
 	if (/\binvoices?\b/.test(q)) f.kind = "INVOICE";
 	else if (/\bevents?\b/.test(q) || /\bwebhooks?\b/.test(q)) f.kind = "EVENT";
-	else if (/\bpayments?\b/.test(q) || /\btransactions?\b/.test(q)) f.kind = "PAYMENT";
+	else if (/\bpayments?\b/.test(q) || /\btransactions?\b/.test(q))
+		f.kind = "PAYMENT";
 
-	const over = q.match(/(?:over|above|more than|at least|>=?)\s*\$?\s*([\d.,]+)/);
+	const over = q.match(
+		/(?:over|above|more than|at least|>=?)\s*\$?\s*([\d.,]+)/,
+	);
 	if (over) f.amountMin = Number((over[1] ?? "").replace(/,/g, ""));
-	const under = q.match(/(?:under|below|less than|at most|<=?)\s*\$?\s*([\d.,]+)/);
+	const under = q.match(
+		/(?:under|below|less than|at most|<=?)\s*\$?\s*([\d.,]+)/,
+	);
 	if (under) f.amountMax = Number((under[1] ?? "").replace(/,/g, ""));
 
 	const cur = q.match(/\b(usd|eur|gbp|uah|cad|aud|chf|jpy)\b/);
@@ -127,7 +136,11 @@ export async function parseLedgerQuery(
 	deadlineMs = 14_000,
 ): Promise<NlResult> {
 	const t0 = Date.now();
-	const llm = chat(SYSTEM, query, { temperature: 0, maxTokens: 256, timeoutMs: deadlineMs })
+	const llm = chat(SYSTEM, query, {
+		temperature: 0,
+		maxTokens: 256,
+		timeoutMs: deadlineMs,
+	})
 		.then((r) => {
 			const parsed = JSON.parse(stripFences(r.text)) as unknown;
 			const filter = normalizeFilter(parsed);
@@ -137,11 +150,17 @@ export async function parseLedgerQuery(
 
 	const winner = await Promise.race([
 		llm,
-		new Promise<null>((resolve) => setTimeout(() => resolve(null), deadlineMs + 500)),
+		new Promise<null>((resolve) =>
+			setTimeout(() => resolve(null), deadlineMs + 500),
+		),
 	]);
 
 	if (winner) return { ...winner, ms: Date.now() - t0 };
 	// Deterministic fallback (covers the timeout case too — the LLM call finishes in
 	// the background but never blocks the user).
-	return { filter: fallbackParse(query), source: "fallback", ms: Date.now() - t0 };
+	return {
+		filter: fallbackParse(query),
+		source: "fallback",
+		ms: Date.now() - t0,
+	};
 }

@@ -7,9 +7,10 @@
  * - resolveReconciliation: REVIEW -> MATCHED with decided_by='human' (the one place
  *   a human decision is expected; SECURITY.md red list stays intact).
  */
+
+import { PROTECTED_INVOICES } from "./agent-actions.ts";
 import { logAgentAction } from "./auditlog.ts";
 import { getDb } from "./db.ts";
-import { PROTECTED_INVOICES } from "./agent-actions.ts";
 import { checkReminderAllowed, sendInvoiceReminder } from "./invoicing.ts";
 import { createPaypalToolkit } from "./paypal.ts";
 import { resolveReconciliation } from "./reconcile.ts";
@@ -39,10 +40,16 @@ export async function sendRowReminder(ref: string): Promise<RowActionResult> {
 		| undefined;
 	if (!inv) return fail(action, "Invoice not found locally.");
 	if (PROTECTED_INVOICES.has(ref)) {
-		return fail(action, "Protected invoice (auto-reminder test subject) — refused.");
+		return fail(
+			action,
+			"Protected invoice (auto-reminder test subject) — refused.",
+		);
 	}
 	if (inv.status !== "SENT") {
-		return fail(action, `Invoice status is ${inv.status} — reminders only for SENT invoices.`);
+		return fail(
+			action,
+			`Invoice status is ${inv.status} — reminders only for SENT invoices.`,
+		);
 	}
 	// Pre-check for a friendly message; sendInvoiceReminder enforces the same gate.
 	const gate = checkReminderAllowed(ref);
@@ -88,7 +95,11 @@ export function markRowMatched(ref: string): RowActionResult {
 			`Only REVIEW rows can be marked matched (this one is ${rec.status}); UNMATCHED needs an invoice link first.`,
 		);
 	}
-	resolveReconciliation(db, rec.id, "marked matched from the Ledger UI (human decision)");
+	resolveReconciliation(
+		db,
+		rec.id,
+		"marked matched from the Ledger UI (human decision)",
+	);
 	logAgentAction({
 		action: "mark_matched",
 		limitCheck: "PASS",
@@ -99,6 +110,7 @@ export function markRowMatched(ref: string): RowActionResult {
 	return {
 		ok: true,
 		action,
-		message: "Marked MATCHED — decided_by=human, match_method=manual, audit trail updated.",
+		message:
+			"Marked MATCHED — decided_by=human, match_method=manual, audit trail updated.",
 	};
 }

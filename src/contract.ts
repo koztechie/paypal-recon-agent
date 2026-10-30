@@ -11,11 +11,12 @@
  *
  * Zero runtime dependencies: hand-rolled validation (no schema library).
  */
-import { chat } from "./llm.ts";
+
 import { logAgentAction } from "./auditlog.ts";
 import { createDraftInvoice, type InvoiceResult } from "./invoicing.ts";
-import type { ToolkitTools } from "./paypal.ts";
+import { chat } from "./llm.ts";
 import type { NegotiationConfig, NegotiationResult } from "./negotiation.ts";
+import type { ToolkitTools } from "./paypal.ts";
 
 export interface Contract {
 	id: string;
@@ -56,26 +57,42 @@ export function validateContract(input: unknown): ValidationResult {
 	if (json.status !== "settled") errors.push("status");
 
 	const parties = json.parties as Record<string, unknown> | undefined;
-	if (!parties || !str(parties.buyer) || !str(parties.seller)) errors.push("parties");
+	if (!parties || !str(parties.buyer) || !str(parties.seller))
+		errors.push("parties");
 	const buyerEmail = parties ? str(parties.buyer_email) : null;
-	if (parties && parties.buyer_email !== undefined && (!buyerEmail || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(buyerEmail))) {
+	if (
+		parties &&
+		parties.buyer_email !== undefined &&
+		(!buyerEmail || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(buyerEmail))
+	) {
 		errors.push("parties.buyer_email");
 	}
 
 	const subject = json.subject as Record<string, unknown> | undefined;
-	if (!subject || !str(subject.item) || !String(subject.item).trim()) errors.push("subject.item");
-	if (!subject || !Number.isInteger(subject.quantity) || Number(subject.quantity) < 1) {
+	if (!subject || !str(subject.item) || !String(subject.item).trim())
+		errors.push("subject.item");
+	if (
+		!subject ||
+		!Number.isInteger(subject.quantity) ||
+		Number(subject.quantity) < 1
+	) {
 		errors.push("subject.quantity");
 	}
-	if (!subject || !str(subject.currency) || !ISO_CURRENCY.test(String(subject.currency))) {
+	if (
+		!subject ||
+		!str(subject.currency) ||
+		!ISO_CURRENCY.test(String(subject.currency))
+	) {
 		errors.push("subject.currency");
 	}
 
 	const price = json.price as Record<string, unknown> | undefined;
 	const total = price ? price.total_minor : undefined;
 	const unit = price ? price.unit_minor : undefined;
-	if (!Number.isInteger(total) || Number(total) < 1) errors.push("price.total_minor");
-	if (!Number.isInteger(unit) || Number(unit) < 1) errors.push("price.unit_minor");
+	if (!Number.isInteger(total) || Number(total) < 1)
+		errors.push("price.total_minor");
+	if (!Number.isInteger(unit) || Number(unit) < 1)
+		errors.push("price.unit_minor");
 	if (
 		typeof total === "number" &&
 		typeof unit === "number" &&
@@ -91,21 +108,36 @@ export function validateContract(input: unknown): ValidationResult {
 	}
 
 	const terms = json.terms as Record<string, unknown> | undefined;
-	if (!terms || terms.type !== "net_days") errors.push("terms.type");
-	if (!terms || !Number.isInteger(terms.days) || Number(terms.days) < 1 || Number(terms.days) > 365) {
+	if (terms?.type !== "net_days") errors.push("terms.type");
+	if (
+		!terms ||
+		!Number.isInteger(terms.days) ||
+		Number(terms.days) < 1 ||
+		Number(terms.days) > 365
+	) {
 		errors.push("terms.days");
 	}
 
 	const neg = json.negotiation as Record<string, unknown> | undefined;
-	if (!neg || !Number.isInteger(neg.rounds) || Number(neg.rounds) < 1) errors.push("negotiation.rounds");
-	if (!neg || !Number.isInteger(neg.opened_minor) || Number(neg.opened_minor) < 1) {
+	if (!neg || !Number.isInteger(neg.rounds) || Number(neg.rounds) < 1)
+		errors.push("negotiation.rounds");
+	if (
+		!neg ||
+		!Number.isInteger(neg.opened_minor) ||
+		Number(neg.opened_minor) < 1
+	) {
 		errors.push("negotiation.opened_minor");
 	}
-	if (!str(json.summary) || !String(json.summary).trim()) errors.push("summary");
-	if (!str(json.agreed_at) || Number.isNaN(Date.parse(String(json.agreed_at)))) errors.push("agreed_at");
-	if (json.source !== "llm" && json.source !== "template") errors.push("source");
+	if (!str(json.summary) || !String(json.summary).trim())
+		errors.push("summary");
+	if (!str(json.agreed_at) || Number.isNaN(Date.parse(String(json.agreed_at))))
+		errors.push("agreed_at");
+	if (json.source !== "llm" && json.source !== "template")
+		errors.push("source");
 
-	return errors.length ? { ok: false, errors } : { ok: true, contract: input as Contract };
+	return errors.length
+		? { ok: false, errors }
+		: { ok: true, contract: input as Contract };
 }
 
 const SYSTEM = `You write a one-sentence summary of a SETTLED negotiation (what was bought,
@@ -120,7 +152,9 @@ export async function buildContract(
 ): Promise<Contract> {
 	if (!result.settled || result.agreedMinor === undefined) {
 		// Stage 98 rule: no contract without a recorded agreement.
-		throw new Error(`no contract without a settled agreement (${result.reason})`);
+		throw new Error(
+			`no contract without a settled agreement (${result.reason})`,
+		);
 	}
 	const agreed = result.agreedMinor;
 	const quantity = cfg.quantity;
@@ -142,7 +176,9 @@ export async function buildContract(
 		});
 		const start = r.text.indexOf("{");
 		const end = r.text.lastIndexOf("}");
-		const parsed = JSON.parse(r.text.slice(start, end + 1)) as { summary?: unknown };
+		const parsed = JSON.parse(r.text.slice(start, end + 1)) as {
+			summary?: unknown;
+		};
 		if (typeof parsed.summary === "string" && parsed.summary.trim()) {
 			summary = parsed.summary.trim().slice(0, 300);
 			source = "llm";
@@ -162,7 +198,10 @@ export async function buildContract(
 		subject: { item: cfg.item, quantity, currency: cfg.currency ?? "USD" },
 		price: { total_minor: agreed, unit_minor: unitMinor },
 		terms: { type: "net_days", days: cfg.paymentDays ?? 7 },
-		negotiation: { rounds: result.rounds.length, opened_minor: cfg.buyerTargetMinor },
+		negotiation: {
+			rounds: result.rounds.length,
+			opened_minor: cfg.buyerTargetMinor,
+		},
 		summary,
 		agreed_at: new Date().toISOString(),
 		source,
@@ -203,7 +242,8 @@ export async function createInvoiceFromContract(
 		logAgentAction({
 			action: "create_invoice",
 			limitCheck: "BLOCKED",
-			targetRef: typeof contract?.id === "string" ? contract.id : "(no contract)",
+			targetRef:
+				typeof contract?.id === "string" ? contract.id : "(no contract)",
 			executed: false,
 			llmDecision: `blocked: ${reason}`,
 		});
@@ -230,7 +270,9 @@ export async function createInvoiceFromContract(
 		invoiceNumber: contract.id,
 	});
 	if (!created.id) {
-		throw new Error(`invoice created without id: ${JSON.stringify(created).slice(0, 200)}`);
+		throw new Error(
+			`invoice created without id: ${JSON.stringify(created).slice(0, 200)}`,
+		);
 	}
 	return {
 		invoiceId: created.id,

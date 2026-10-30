@@ -24,12 +24,15 @@ console.log(
 const result = await negotiate(cfg);
 
 for (const r of result.rounds) {
-	console.log(`Round ${r.round} — ${r.agent.toUpperCase()}: "${r.message}"  [${(r.priceMinor / 100).toFixed(2)}]`);
+	console.log(
+		`Round ${r.round} — ${r.agent.toUpperCase()}: "${r.message}"  [${(r.priceMinor / 100).toFixed(2)}]`,
+	);
 }
 
+const agreed = result.agreedMinor;
 console.log(
-	result.settled
-		? `\nResult: SETTLED at ${(result.agreedMinor! / 100).toFixed(2)} ${cfg.currency} after ${result.rounds.length} rounds (${result.reason})`
+	result.settled && agreed !== undefined
+		? `\nResult: SETTLED at ${(agreed / 100).toFixed(2)} ${cfg.currency} after ${result.rounds.length} rounds (${result.reason})`
 		: `\nResult: NOT SETTLED — ${result.reason}`,
 );
 
