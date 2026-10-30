@@ -30,3 +30,5 @@ services:
         sync: false
       - key: BASE_URL
         sync: false
+      - key: SANDBOX_BUYER_EMAIL
+        sync: false
