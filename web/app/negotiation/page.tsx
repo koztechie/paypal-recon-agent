@@ -6,6 +6,7 @@
 // endpoint) — the same negotiate() + buildContract() the console scripts use.
 
 import Link from 'next/link';
+import { TopNav } from '../components/top-nav';
 import { useEffect, useRef, useState } from 'react';
 
 type Round = { round: number; agent: 'buyer' | 'seller'; message: string; priceMinor: number };
@@ -70,9 +71,12 @@ export default function NegotiationWindow() {
 
   return (
     <main className="min-h-dvh bg-pp-canvas px-8 py-6 font-paypal text-pp-ink">
-      <Link href="/" className="text-sm font-semibold text-pp-blue hover:underline">
-        ← All pages
-      </Link>
+      <div className="flex items-center justify-between gap-4">
+        <TopNav />
+        <Link href="/" className="text-sm font-semibold text-pp-blue hover:underline">
+          ← All pages
+        </Link>
+      </div>
       <h1 className="mt-3 text-[28px] font-semibold text-pp-navy">Negotiation window</h1>
       <p className="mt-2 text-sm text-pp-muted">
         Two LLM agents haggle over one batch order — buyer authorization $460, seller floor $450,

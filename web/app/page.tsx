@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { TopNav } from './components/top-nav';
 
 const dashboard = { href: '/dashboard', label: 'Dashboard', detail: 'AG Studio reports over all of the data' };
 
@@ -28,6 +29,9 @@ export default function Home() {
   return (
     <main className="min-h-dvh bg-pp-canvas px-8 py-6 font-paypal text-pp-ink">
       <div className="mx-auto max-w-3xl">
+        {/* app chrome (stage 106: same nav on every screen) */}
+        <TopNav />
+
         {/* trust line */}
         <p className="text-xs font-semibold uppercase tracking-wider text-pp-muted">
           PayPal sandbox · AG Grid + AG Studio · live data
