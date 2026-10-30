@@ -1,0 +1,70 @@
+{
+ "frames": [
+  {
+   "frame": "F1 problem: ledger + UNMATCHED filter",
+   "ms": 6538,
+   "detail": "filter applied"
+  },
+  {
+   "frame": "F2 problem: row details",
+   "ms": 9383,
+   "detail": "panel open"
+  },
+  {
+   "frame": "F3 problem: caption hold",
+   "ms": 10886,
+   "detail": "hold"
+  },
+  {
+   "frame": "F4 solution: hero + CTA",
+   "ms": 14512,
+   "detail": "CTA -> grid"
+  },
+  {
+   "frame": "F5 solution: Agent audit",
+   "ms": 17511,
+   "detail": "audit table"
+  },
+  {
+   "frame": "F6 solution: Settings limits",
+   "ms": 20472,
+   "detail": "limits card"
+  },
+  {
+   "frame": "F7 demo: negotiation Run",
+   "ms": 27126,
+   "detail": "3 rounds done"
+  },
+  {
+   "frame": "F8 demo: Settled + contract",
+   "ms": 29787,
+   "detail": "contract card"
+  },
+  {
+   "frame": "F9 demo: npm run demo (console)",
+   "ms": 67811
+  },
+  {
+   "frame": "F10 demo: AI explanation",
+   "ms": 71930,
+   "detail": "AI insight visible"
+  },
+  {
+   "frame": "F11 demo: hosted URL AI query",
+   "ms": 75040,
+   "detail": "llm answer"
+  },
+  {
+   "frame": "F12 demo: quick filter speed",
+   "ms": 78889,
+   "detail": "typed EUR"
+  },
+  {
+   "frame": "F13-14 outro frames (montage-only)",
+   "ms": 80391,
+   "detail": "no live action"
+  }
+ ],
+ "totalMs": 80522,
+ "pass": true
+}
