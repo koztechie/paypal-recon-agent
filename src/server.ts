@@ -79,7 +79,7 @@ a{color:var(--blue)}
     .then(function(d){
       b.disabled=false;b.textContent='Ask';
       if(!d.ok){out.textContent='Error: '+(d.error||'unknown');return;}
-      out.textContent='filter: '+JSON.stringify(d.filter)+'\nsource: '+d.source+' · '+(d.ms/1000).toFixed(1)+'s';
+      out.textContent='filter: '+JSON.stringify(d.filter)+' | source: '+d.source+' · '+(d.ms/1000).toFixed(1)+'s';
     })
     .catch(function(err){b.disabled=false;b.textContent='Ask';out.textContent='Request failed: '+err;});
 });
