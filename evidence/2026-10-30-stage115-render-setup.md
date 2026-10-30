@@ -92,3 +92,14 @@ Date: 2026-10-30 (plan date 09.11 — early)
    No public promo code exists yet.
 6. Parallel track (independent of credits): step B service creation via Blueprint —
    NOT started by the user yet.
+
+## Update (2026-10-30, user): CREDITS RECEIVED ✅
+- The user reports **$50 Render credits received on the account** — the sponsor
+  requirement part of stage 115 is satisfied (resolution path: public Discord/email
+  outreach as described above; the failing-claim incident closed).
+- Outstanding: **service creation (step B)**. Probe of the plain host
+  `https://paypal-recon-agent.onrender.com/health` returns 404 (Render edge, no such
+  bare-host service) — either the service was not created yet, or it has the
+  canonical `paypal-recon-agent-<hash>.onrender.com` URL, which the user must supply.
+- Stage stays ⏳ until /health answers 200 on the public URL (that check also closes
+  stage 117's marker).
