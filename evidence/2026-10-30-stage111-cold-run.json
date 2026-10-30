@@ -1,0 +1,71 @@
+{
+ "runs": [
+  {
+   "run": 1,
+   "totalMs": 3867,
+   "underBudget": true,
+   "stalls": [],
+   "timeline": [
+    {
+     "step": "1. open the URL (homepage)",
+     "ms": 604,
+     "detail": "Cross-Border Reconciliation Agent"
+    },
+    {
+     "step": "2. understand + click the primary CTA",
+     "ms": 306,
+     "detail": "CTA -> /reconciliation"
+    },
+    {
+     "step": "3. see live data (grid rows)",
+     "ms": 1354,
+     "detail": "23 rows rendered"
+    },
+    {
+     "step": "4. open a row (details panel)",
+     "ms": 288,
+     "detail": "PAYMENT · QA-P1"
+    },
+    {
+     "step": "5. result: AI explanation appears",
+     "ms": 862,
+     "detail": "AI insight visible (llm)"
+    }
+   ]
+  },
+  {
+   "run": 2,
+   "totalMs": 3271,
+   "underBudget": true,
+   "stalls": [],
+   "timeline": [
+    {
+     "step": "1. open the URL (homepage)",
+     "ms": 417,
+     "detail": "Cross-Border Reconciliation Agent"
+    },
+    {
+     "step": "2. understand + click the primary CTA",
+     "ms": 300,
+     "detail": "CTA -> /reconciliation"
+    },
+    {
+     "step": "3. see live data (grid rows)",
+     "ms": 1229,
+     "detail": "23 rows rendered"
+    },
+    {
+     "step": "4. open a row (details panel)",
+     "ms": 251,
+     "detail": "PAYMENT · QA-P1"
+    },
+    {
+     "step": "5. result: AI explanation appears",
+     "ms": 718,
+     "detail": "AI insight visible (llm)"
+    }
+   ]
+  }
+ ],
+ "allOk": true
+}
