@@ -13,6 +13,7 @@
  */
 
 import { logAgentAction } from "./auditlog.ts";
+import { isDryRun } from "./dryrun.ts";
 import { createDraftInvoice, type InvoiceResult } from "./invoicing.ts";
 import { chat } from "./llm.ts";
 import type { NegotiationConfig, NegotiationResult } from "./negotiation.ts";
@@ -255,14 +256,16 @@ export async function createInvoiceFromContract(
 		refuse(`invalid contract (${check.errors.join(", ")})`);
 	}
 	const buyerEmail = contract.parties.buyer_email;
-	if (!buyerEmail) {
+	if (!buyerEmail && !isDryRun()) {
 		refuse("contract has no parties.buyer_email");
 	}
 	const amount = (contract.price.total_minor / 100).toFixed(2);
 	const termsNote = `net ${contract.terms.days} days`;
+	// Dry-run may proceed without a real recipient (nothing is ever sent).
+	const recipient = buyerEmail ?? "dry-run@placeholder.invalid";
 
 	const created: InvoiceResult = await createDraftInvoice(tools, {
-		buyerEmail,
+		buyerEmail: recipient,
 		itemName: `${contract.subject.quantity} × ${contract.subject.item} (contract ${contract.id})`,
 		amount,
 		currency: contract.subject.currency,
@@ -279,7 +282,7 @@ export async function createInvoiceFromContract(
 		invoiceNumber: contract.id,
 		amount,
 		currency: contract.subject.currency,
-		buyerEmail,
+		buyerEmail: buyerEmail ?? "dry-run@placeholder.invalid",
 		termsNote,
 	};
 }

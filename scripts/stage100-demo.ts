@@ -7,6 +7,7 @@
 
 import { confirmPaymentToAgents, readAgentView } from "../src/confirmation.ts";
 import { buildContract, createInvoiceFromContract } from "../src/contract.ts";
+import { isDryRun } from "../src/dryrun.ts";
 import {
 	type InvoiceResult,
 	parseToolResult,
@@ -20,8 +21,14 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const money = (minor: number) => `$${(minor / 100).toFixed(2)}`;
 const t0 = Date.now();
 
-const buyerEmail = process.env.SANDBOX_BUYER_EMAIL;
-if (!buyerEmail) throw new Error("SANDBOX_BUYER_EMAIL missing");
+const buyerEmail =
+	process.env.SANDBOX_BUYER_EMAIL ??
+	(isDryRun() ? "dry-run@placeholder.invalid" : undefined);
+if (!buyerEmail) {
+	throw new Error(
+		"SANDBOX_BUYER_EMAIL missing (fill .env.local, or run with DRY_RUN=true)",
+	);
+}
 
 const cfg = {
 	item: "cross-border reconciliation report",
@@ -91,17 +98,26 @@ const paid = await recordExternalPayment(
 	inv.currency,
 	`Buyer agent settled contract ${contract.id}`,
 );
-const after = parseToolResult(
-	await (
-		tools.get_invoice as unknown as {
-			execute: (a: unknown, o: unknown) => Promise<unknown>;
-		}
-	).execute(
-		{ invoice_id: inv.invoiceId },
-		{ toolCallId: "demo-get", messages: [] },
-	),
-) as InvoiceResult;
-const invoiceStatus = String(after.status ?? paid.status ?? "UNKNOWN");
+let after: InvoiceResult = {};
+try {
+	after = parseToolResult(
+		await (
+			tools.get_invoice as unknown as {
+				execute: (a: unknown, o: unknown) => Promise<unknown>;
+			}
+		).execute(
+			{ invoice_id: inv.invoiceId },
+			{ toolCallId: "demo-get", messages: [] },
+		),
+	) as InvoiceResult;
+} catch {
+	after = {}; // dry-run stub has no PayPal record — fall back to the payment result
+}
+const invoiceStatus = String(
+	after.status ??
+		paid.status ??
+		((paid as { dry_run?: boolean }).dry_run ? "DRY_RUN_RECORDED" : "UNKNOWN"),
+);
 console.log(`  -> invoice ${inv.invoiceId} is now ${invoiceStatus}`);
 await sleep(4500);
 
@@ -128,8 +144,11 @@ const secs = ((Date.now() - t0) / 1000).toFixed(1);
 const ok =
 	buyerView.length > 0 &&
 	sellerView.length > 0 &&
-	["PAID", "MARKED_AS_PAID"].includes(invoiceStatus);
-console.log(
-	`\n=== DONE in ${secs}s — ${ok ? "two agents paid each other: PROVEN" : "FAILED"} ===`,
-);
+	["PAID", "MARKED_AS_PAID", "DRY_RUN_RECORDED"].includes(invoiceStatus);
+const verdict = !ok
+	? "FAILED"
+	: isDryRun()
+		? "two agents paid each other: PROVEN (simulated: dry-run mode)"
+		: "two agents paid each other: PROVEN";
+console.log(`\n=== DONE in ${secs}s — ${verdict} ===`);
 process.exit(ok ? 0 : 1);

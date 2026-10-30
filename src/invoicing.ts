@@ -77,6 +77,11 @@ export async function createDraftInvoice(
 	// self link {rel,href,method} (not the invoice body). Extract the id and
 	// fetch the full record via get_invoice.
 	const parsed = parseToolResult(result);
+	// Stage 123: a dry-run stub carries no real PayPal record — return it as-is
+	// instead of a read-through get_invoice (which would need live credentials).
+	if ((parsed as { dry_run?: boolean }).dry_run) {
+		return parsed;
+	}
 
 	let invoiceId: string | undefined = parsed.id;
 	if (!invoiceId && typeof parsed.href === "string") {

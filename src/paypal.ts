@@ -7,23 +7,36 @@
  * dispute acceptance, payouts, subscriptions/catalog/shipment.
  */
 import { PayPalAgentToolkit } from "@paypal/agent-toolkit/ai-sdk";
+import { isDryRun, withDryRun } from "./dryrun.ts";
 
 export function createPaypalToolkit(): PayPalAgentToolkit {
 	const clientId = process.env.PAYPAL_CLIENT_ID;
 	const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
-	if (!clientId || clientId.startsWith("REPLACE")) {
-		throw new Error("PAYPAL_CLIENT_ID is missing (see .env.example)");
-	}
-	if (!clientSecret || clientSecret.startsWith("REPLACE")) {
-		throw new Error("PAYPAL_CLIENT_SECRET is missing (see .env.example)");
+	const missing = (v?: string) => !v || v.startsWith("REPLACE");
+	if (missing(clientId) || missing(clientSecret)) {
+		if (!isDryRun()) {
+			throw new Error("PAYPAL_CLIENT_ID is missing (see .env.example)");
+		}
+		// Stage 123: keyless fresh-machine demo — money actions are stubbed by
+		// withDryRun anyway, so placeholder credentials can never leave the process.
+		console.log(
+			"[dry-run] PayPal credentials absent — placeholder mode, no real calls",
+		);
 	}
 
 	const sandbox =
 		(process.env.PAYPAL_ENVIRONMENT ?? "SANDBOX") !== "PRODUCTION";
 
-	return new PayPalAgentToolkit({
-		clientId,
-		clientSecret,
+	// Narrow for the constructor: missing+dry-run already logged above.
+	const id = missing(clientId)
+		? "DRY-RUN-PLACEHOLDER-CLIENT"
+		: (clientId as string);
+	const secret = missing(clientSecret)
+		? "DRY-RUN-PLACEHOLDER-SECRET"
+		: (clientSecret as string);
+	const toolkit = new PayPalAgentToolkit({
+		clientId: id,
+		clientSecret: secret,
 		configuration: {
 			context: { sandbox },
 			actions: {
@@ -66,6 +79,11 @@ export function createPaypalToolkit(): PayPalAgentToolkit {
 			},
 		},
 	});
+	// Stage 123: the ONE place where DRY_RUN applies — every consumer of getTools()
+	// gets stubbed money actions in dry-run mode (keyless demos stay side-effect-free).
+	return {
+		getTools: () => withDryRun(toolkit.getTools()),
+	} as unknown as PayPalAgentToolkit;
 }
 
 export type ToolkitTools = ReturnType<PayPalAgentToolkit["getTools"]>;
