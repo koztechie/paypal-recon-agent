@@ -140,7 +140,8 @@ with open(srt_path, "w", encoding="utf-8") as f:
         f.write(f"{i}\n{fmt_t(a)} --> {fmt_t(max(b, a + 0.8))}\n{txt}\n\n")
 print("srt cues:", len(cues))
 import shutil
-shutil.copy(srt_path, f"{EV}/2026-10-30-stage132-demo-final.srt")
+# "-subs-source" suffix keeps VLC from auto-loading it OVER the burned subs
+shutil.copy(srt_path, f"{EV}/2026-10-30-stage132-demo-final-subs-source.srt")
 
 final = f"{EV}/2026-10-30-stage132-demo-final.mp4"
 style = ("FontName=DejaVu Sans,FontSize=17,Bold=0,PrimaryColour=&H00FFFFFF,"

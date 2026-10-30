@@ -7,8 +7,10 @@ Date: 2026-10-30 (plan date 10.11 — early)
 **Deliverables:**
 - `evidence/2026-10-30-stage132-demo-final.mp4` — **100.8 s (1:41 < 3:00)**,
   H.264 1280×900 + AAC,4.6 MB
-- `evidence/2026-10-30-stage132-demo-final.srt` — the same EN subtitles as a
-  standalone file (for the YouTube upload, stage 134)
+- `evidence/2026-10-30-stage132-demo-final-subs-source.srt` — the same EN subtitles
+  as a standalone source file (translation/editing; **the mp4 already has them
+  burned — do NOT also attach this file as a YouTube CC track**, and the
+  `-subs-source` suffix keeps VLC from auto-loading it over the burned set)
 - `evidence/2026-10-30-stage132-montage-script.py` — the single rerunnable build
   (audio-driven segment lengths, trims, burns)
 
