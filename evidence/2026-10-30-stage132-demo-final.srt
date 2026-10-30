@@ -1,0 +1,52 @@
+1
+00:00:00,000 --> 00:00:06,178
+A seller gets paid across borders — and the money rarely matches the invoice.
+
+2
+00:00:06,178 --> 00:00:12,276
+Every mismatch is an hour of manual work, or a chargeback waiting to happen.
+
+3
+00:00:12,276 --> 00:00:17,972
+One hundred forty-four real sandbox events. One agent. No spreadsheets.
+
+4
+00:00:17,972 --> 00:00:26,955
+Meet the Cross-Border Reconciliation Agent: it reconciles, explains, and acts — inside hard guardrails.
+
+5
+00:00:26,955 --> 00:00:32,623
+Every action is logged, including the ones the guardrails refuse.
+
+6
+00:00:32,623 --> 00:00:40,821
+Limits are code: five hundred dollars per invoice, one reminder a day, ten negotiation rounds.
+
+7
+00:00:40,821 --> 00:00:47,568
+Two agents haggle: the buyer opens at $400, the seller holds the $450 floor.
+
+8
+00:00:47,568 --> 00:00:54,494
+They agree — and the deal becomes a validated contract. No action without one.
+
+9
+00:00:54,494 --> 00:01:01,419
+The same guarded shell creates the invoice, sends it, and records the payment.
+
+10
+00:01:01,419 --> 00:01:10,652
+The ledger shows the new row, and the agent explains its own decision: matched, variance zero — and why.
+
+11
+00:01:10,652 --> 00:01:22,106
+It works from a browser too — no install, powered by the same AI layer. Filters under a second, CSV export — every state handled.
+
+12
+00:01:22,106 --> 00:01:33,137
+Freelancers lose days to reconciliation. This agent does it in seconds — auditable, guardrailed, on real PayPal data.
+
+13
+00:01:33,137 --> 00:01:40,775
+Open source: three commands to run it, or just open the URL. PayPal AI Hackathon.
+
