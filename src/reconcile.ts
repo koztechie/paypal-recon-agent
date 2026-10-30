@@ -22,6 +22,8 @@ export interface InvoiceLite {
 	currency?: string;
 	total_minor?: number;
 	status?: string;
+	/** PayPal invoice_date (YYYY-MM-DD) — powers the +/-3-day candidate window. */
+	issued_at?: string;
 }
 
 export type ReconStatus = "MATCHED" | "UNMATCHED" | "REVIEW";
@@ -29,6 +31,8 @@ export type ReconStatus = "MATCHED" | "UNMATCHED" | "REVIEW";
 export interface ReconOutcome {
 	status: ReconStatus;
 	invoiceId?: string;
+	/** Facts of the matched invoice (stages 119/120 fix: real upsert, no 0.00 rows). */
+	invoice?: InvoiceLite;
 	matchMethod?: "exact" | "number_amount" | "amount_buyer" | "manual";
 	varianceMinor: number;
 	reason?: string;
@@ -72,6 +76,7 @@ async function listAllInvoices(tools: ToolkitTools): Promise<InvoiceLite[]> {
 				? Math.round(parseFloat(amount.value) * 100)
 				: undefined,
 			status: i.status ? String(i.status) : undefined,
+			issued_at: detail.invoice_date ? String(detail.invoice_date) : undefined,
 		};
 	});
 }
@@ -104,6 +109,7 @@ export async function reconcilePayment(
 			return {
 				status: "REVIEW",
 				invoiceId: inv.id,
+				invoice: inv,
 				varianceMinor: 0,
 				reason: `currency mismatch: payment ${payment.currency} vs invoice ${inv.currency}`,
 				explanation: `Payment ${payment.paypal_payment_id} (${payment.currency}) references invoice #${refNumber} (${inv.currency}): different currencies require a human decision (FX rate unknown).`,
@@ -114,6 +120,7 @@ export async function reconcilePayment(
 			return {
 				status: "REVIEW",
 				invoiceId: inv.id,
+				invoice: inv,
 				varianceMinor: variance,
 				reason: `amount variance: ${(variance / 100).toFixed(2)} ${payment.currency}`,
 				explanation: `Payment ${payment.paypal_payment_id} is ${(Math.abs(variance) / 100).toFixed(2)} ${payment.currency} ${variance > 0 ? "above" : "below"} invoice #${refNumber} total — likely partial or over payment; human review.`,
@@ -122,6 +129,7 @@ export async function reconcilePayment(
 		return {
 			status: "MATCHED",
 			invoiceId: inv.id,
+			invoice: inv,
 			matchMethod: "number_amount",
 			varianceMinor: 0,
 			explanation: `Payment ${payment.paypal_payment_id} matches invoice #${refNumber} exactly: number + amount (${(payment.amount_minor / 100).toFixed(2)}) + currency (${payment.currency}).`,
@@ -140,6 +148,7 @@ export async function reconcilePayment(
 		return {
 			status: "MATCHED",
 			invoiceId: inv.id,
+			invoice: inv,
 			matchMethod: "amount_buyer",
 			varianceMinor: 0,
 			explanation: `Payment ${payment.paypal_payment_id} has no reference, but exactly one open invoice (#${inv.invoice_number ?? inv.id}) has the same amount and currency — matched by amount+currency.`,
@@ -181,7 +190,7 @@ export function saveReconciliation(
 ): number {
 	let localInvoiceId: number | null = null;
 	if (outcome.invoiceId) {
-		localInvoiceId = upsertLocalInvoice(db, outcome.invoiceId);
+		localInvoiceId = upsertLocalInvoice(db, outcome.invoiceId, outcome.invoice);
 	}
 	const res = db
 		.prepare(
@@ -201,18 +210,32 @@ export function saveReconciliation(
 	return Number(res.lastInsertRowid);
 }
 
-/** Sync a PayPal invoice into the local invoices table; returns local rowid. */
-function upsertLocalInvoice(db: DatabaseSync, paypalId: string): number {
+/** Sync a PayPal invoice into the local invoices table; returns local rowid.
+ * With matched-invoice facts (stage 120 fix) the row carries the REAL number,
+ * total, status and invoice_date — earlier "minimal" rows showed 0.00 and broke
+ * the +/-3-day candidate window used by the AI explanations. */
+function upsertLocalInvoice(
+	db: DatabaseSync,
+	paypalId: string,
+	facts?: InvoiceLite,
+): number {
 	const existing = db
 		.prepare("SELECT id FROM invoices WHERE paypal_invoice_id = ?")
 		.get(paypalId) as { id?: number } | undefined;
 	if (existing?.id) return existing.id;
-	// Minimal row; full detail sync is stage 48+ scope.
 	db.prepare(
-		`INSERT INTO invoices (paypal_invoice_id, currency, subtotal_minor, total_minor, status, source, raw_json)
-     VALUES (?, 'USD', 0, 0, 'SENT', 'recon_sync', json_object('paypal_id', ?))
+		`INSERT INTO invoices (paypal_invoice_id, invoice_number, currency, subtotal_minor, total_minor, status, issued_at, source, raw_json)
+     VALUES (?, ?, ?, 0, ?, ?, ?, 'recon_sync', json_object('paypal_id', ?))
      ON CONFLICT(paypal_invoice_id) DO NOTHING`,
-	).run(paypalId, paypalId);
+	).run(
+		paypalId,
+		facts?.invoice_number ?? null,
+		facts?.currency ?? "USD",
+		facts?.total_minor ?? 0,
+		facts?.status ?? "SENT",
+		facts?.issued_at ?? null,
+		paypalId,
+	);
 	const row = db
 		.prepare("SELECT id FROM invoices WHERE paypal_invoice_id = ?")
 		.get(paypalId) as {

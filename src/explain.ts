@@ -45,19 +45,21 @@ function paymentFacts(ref: string): Facts | null {
 
 	const rec = db
 		.prepare(
-			`SELECT status, match_method, variance_minor, currency, reason, ai_explanation, detected_at
+			`SELECT status, match_method, variance_minor, currency, reason, ai_explanation, detected_at, invoice_id
        FROM reconciliation_records WHERE payment_id = ?`,
 		)
 		.get(Number(p.id)) as Record<string, unknown> | undefined;
 
-	const linkedInv = p.invoice_id
-		? (db
-				.prepare(
-					`SELECT paypal_invoice_id, invoice_number, buyer_email, currency, total_minor, status
+	const linkedLocalId = p.invoice_id ?? rec?.invoice_id;
+	const linkedInv =
+		linkedLocalId != null
+			? (db
+					.prepare(
+						`SELECT paypal_invoice_id, invoice_number, buyer_email, currency, total_minor, status
          FROM invoices WHERE id = ?`,
-				)
-				.get(Number(p.invoice_id)) as Record<string, unknown> | undefined)
-		: undefined;
+					)
+					.get(Number(linkedLocalId)) as Record<string, unknown> | undefined)
+			: undefined;
 
 	// Candidate scan: same currency, amount within +/-3 days (the engine's window).
 	const candidates = db
