@@ -27,6 +27,68 @@ mkdirSync("logs", { recursive: true });
 
 const PORT = Number(process.env.PORT ?? 3000);
 
+const MINI_DEMO_HTML = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cross-Border Reconciliation Agent — live demo</title>
+<style>
+:root{--navy:#001c64;--blue:#0070e0;--canvas:#f5f7fa;--border:#dbe1e8;--ink:#001435;--muted:#545d68;--ok:#00875a;--bad:#c4122f}
+*{box-sizing:border-box}
+body{margin:0;background:var(--canvas);color:var(--ink);font-family:"PayPal Open","Helvetica Neue",Helvetica,Arial,sans-serif}
+main{max-width:760px;margin:0 auto;padding:32px 20px}
+h1{color:var(--navy);font-size:28px;margin:8px 0 4px}
+.sub{color:var(--muted);font-size:15px;line-height:1.5}
+.kicker{color:var(--muted);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}
+.chip{border:1px solid var(--border);background:#fff;border-radius:999px;padding:4px 12px;font-size:13px;font-weight:600;color:var(--navy)}
+form{display:flex;gap:8px;margin:18px 0;flex-wrap:wrap}
+input{flex:1;min-width:240px;height:40px;border:1px solid var(--border);border-radius:4px;padding:0 12px;font-size:14px;background:#fff;color:var(--ink)}
+input:focus{outline:2px solid var(--blue);outline-offset:1px;border-color:var(--blue)}
+button{height:40px;border:0;border-radius:4px;background:var(--blue);color:#fff;font-weight:600;padding:0 20px;cursor:pointer}
+button:disabled{opacity:.6;cursor:not-allowed}
+#out{background:#fff;border:1px solid var(--border);border-radius:6px;padding:14px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;white-space:pre-wrap;min-height:70px}
+.muted{color:var(--muted);font-size:13px;line-height:1.5}
+footer{margin-top:22px;font-size:13px;color:var(--muted)}
+a{color:var(--blue)}
+</style>
+</head>
+<body><main>
+<p class="kicker">Hosted demo · no install required</p>
+<h1>Cross-Border Reconciliation Agent</h1>
+<p class="sub">Ask the agent about the ledger in plain English — the same AI layer (Gemini) the product uses, running on this service.</p>
+<div class="chips"><span class="chip" id="health">checking /health…</span><span class="chip" id="count">checking data…</span></div>
+<form id="f"><input id="q" aria-label="Question" placeholder="e.g. &quot;matched payments over $40&quot;"><button id="b" type="submit">Ask</button></form>
+<div id="out">Results (filter + source + latency) appear here.</div>
+<p class="muted">For the full local demo (web UI + console cycle): see the README — 3 commands.</p>
+<footer>API: <a href="/health">/health</a> · <a href="/api/app-config">/api/app-config</a> · <a href="/api/recon/rows?count=1">/rows?count=1</a></footer>
+<script>
+(function(){
+ var out=document.getElementById('out');
+ fetch('/health').then(function(r){return r.json();}).then(function(){var e=document.getElementById('health');e.textContent='● health: OK';e.style.color='var(--ok)';}).catch(function(){var e=document.getElementById('health');e.textContent='● health: FAIL';e.style.color='var(--bad)';});
+ fetch('/api/recon/rows?count=1').then(function(r){return r.json();}).then(function(d){document.getElementById('count').textContent='ledger rows: '+d.count;}).catch(function(){document.getElementById('count').textContent='ledger: n/a';});
+ document.getElementById('f').addEventListener('submit',function(ev){
+   ev.preventDefault();
+   var q=document.getElementById('q').value.trim();
+   var b=document.getElementById('b');
+   if(!q){out.textContent='Type a question first — e.g. "matched payments over $40".';return;}
+   b.disabled=true;b.textContent='Thinking…';out.textContent='…';
+   fetch('/api/nl-filter',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q})})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      b.disabled=false;b.textContent='Ask';
+      if(!d.ok){out.textContent='Error: '+(d.error||'unknown');return;}
+      out.textContent='filter: '+JSON.stringify(d.filter)+'\nsource: '+d.source+' · '+(d.ms/1000).toFixed(1)+'s';
+    })
+    .catch(function(err){b.disabled=false;b.textContent='Ask';out.textContent='Request failed: '+err;});
+});
+})();
+</script>
+</body>
+</html>
+`;
+
 const server = createServer((req, res) => {
 	const url = req.url ?? "/";
 
@@ -42,6 +104,18 @@ const server = createServer((req, res) => {
 		res.end(
 			JSON.stringify({ status: "ok", service: "paypal-reconciliation-agent" }),
 		);
+		return;
+	}
+
+	// Stage 125: the hosted-URL demo path — a self-contained page where a judge can
+	// run the AI layer (plain-English ledger query) straight from the public URL,
+	// with live health + row-count chips. No external assets, no install.
+	if (req.method === "GET" && url.split("?")[0] === "/") {
+		res.writeHead(200, {
+			"Content-Type": "text/html; charset=utf-8",
+			"Cache-Control": "no-store",
+		});
+		res.end(MINI_DEMO_HTML);
 		return;
 	}
 
