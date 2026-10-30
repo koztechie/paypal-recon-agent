@@ -15,6 +15,8 @@ import {
 import { explainLedgerRow } from "./explain.ts";
 import { negotiate } from "./negotiation.ts";
 import { parseLedgerQuery } from "./nl.ts";
+import { createPaypalToolkit } from "./paypal.ts";
+import { reconcilePending } from "./reconcile.ts";
 import {
 	markRowMatched,
 	type RowActionResult,
@@ -521,6 +523,41 @@ const server = createServer((req, res) => {
 				source: "env + code constants (.env.local / SECURITY rules)",
 			}),
 		);
+		return;
+	}
+
+	// Stage 119: reconcile whatever the webhooks delivered — INCREMENTAL (only
+	// unreconciled COMPLETED payments), so repeated calls are effectively no-ops.
+	// This is how "звірити" runs on the public URL of the production service.
+	if (req.method === "POST" && url.split("?")[0] === "/api/recon/run") {
+		const cors = { "Access-Control-Allow-Origin": "*" };
+		req.on("data", () => undefined);
+		req.on("end", async () => {
+			try {
+				const tools = createPaypalToolkit().getTools();
+				const outcomes = await reconcilePending(tools, getDb());
+				res.writeHead(200, { "Content-Type": "application/json", ...cors });
+				res.end(
+					JSON.stringify({
+						ok: true,
+						reconciled: outcomes.length,
+						outcomes: outcomes.map((o) => ({
+							status: o.status,
+							match_method: o.matchMethod ?? null,
+							variance_minor: o.varianceMinor,
+						})),
+					}),
+				);
+			} catch (e) {
+				res.writeHead(500, { "Content-Type": "application/json", ...cors });
+				res.end(
+					JSON.stringify({
+						ok: false,
+						error: e instanceof Error ? e.message.slice(0, 300) : String(e),
+					}),
+				);
+			}
+		});
 		return;
 	}
 
