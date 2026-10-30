@@ -56,7 +56,7 @@ export default async function SettingsPage() {
     <main className="flex h-dvh flex-col bg-pp-canvas px-8 py-6 font-paypal text-pp-ink">
       <div className="flex items-center justify-between gap-4">
         <TopNav />
-        <Link href="/" className="text-sm font-semibold text-pp-blue hover:underline">
+        <Link href="/" className="text-sm font-semibold text-pp-blue-dark hover:underline">
           ← All pages
         </Link>
       </div>

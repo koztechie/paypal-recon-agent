@@ -40,7 +40,7 @@ export default async function AgentPage() {
     <main className="flex h-dvh flex-col bg-pp-canvas px-8 py-6 font-paypal text-pp-ink">
       <div className="flex items-center justify-between gap-4">
         <TopNav />
-        <Link href="/" className="text-sm font-semibold text-pp-blue hover:underline">
+        <Link href="/" className="text-sm font-semibold text-pp-blue-dark hover:underline">
           ← All pages
         </Link>
       </div>
@@ -61,7 +61,11 @@ export default async function AgentPage() {
         ))}
       </dl>
 
-      <div className="mt-5 min-h-0 flex-1 overflow-auto rounded border border-pp-border bg-white">
+      <div
+        tabIndex={0}
+        aria-label="Agent action log"
+        className="mt-5 min-h-0 flex-1 overflow-auto rounded border border-pp-border bg-white focus-visible:outline-offset-2"
+      >
         <table className="w-full text-left text-sm">
           <thead className="sticky top-0 bg-pp-canvas text-xs uppercase tracking-wider text-pp-muted">
             <tr>
@@ -81,7 +85,7 @@ export default async function AgentPage() {
                 <td className="px-4 py-2">
                   <span
                     className={`rounded px-2 py-0.5 text-xs font-semibold ${
-                      a.limit_check === 'BLOCKED' ? 'bg-pp-danger/10 text-pp-danger' : 'bg-pp-success/10 text-pp-success'
+                      a.limit_check === 'BLOCKED' ? 'bg-pp-danger/10 text-pp-danger' : 'bg-pp-success/10 text-pp-success-ink'
                     }`}
                   >
                     {a.limit_check}

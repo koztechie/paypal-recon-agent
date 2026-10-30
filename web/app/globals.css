@@ -28,6 +28,7 @@ body {
   --pp-ink: #001435;
   --pp-muted: #545d68;
   --pp-success: #00875a;
+  --pp-success-ink: #00603a;
   --pp-warning: #b45309;
   --pp-danger: #c4122f;
   --pp-font: "PayPal Open", "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -57,6 +58,7 @@ body {
   --color-pp-ink: var(--pp-ink);
   --color-pp-muted: var(--pp-muted);
   --color-pp-success: var(--pp-success);
+  --color-pp-success-ink: var(--pp-success-ink);
   --color-pp-warning: var(--pp-warning);
   --color-pp-danger: var(--pp-danger);
   --font-paypal: var(--pp-font);
@@ -90,4 +92,10 @@ body {
 .pp-st-pending {
   color: var(--pp-muted);
   font-weight: 600;
+}
+
+/* Accessibility (stage 107): a visible focus ring on every interactive element. */
+:focus-visible {
+  outline: 2px solid var(--pp-blue);
+  outline-offset: 2px;
 }

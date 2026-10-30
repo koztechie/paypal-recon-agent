@@ -54,10 +54,10 @@ export default function Home() {
           >
             Open the Ledger →
           </Link>
-          <Link href="/negotiation" className="text-sm font-semibold text-pp-blue hover:underline">
+          <Link href="/negotiation" className="text-sm font-semibold text-pp-blue-dark hover:underline">
             Negotiation demo →
           </Link>
-          <Link href="/dashboard" className="text-sm font-semibold text-pp-blue hover:underline">
+          <Link href="/dashboard" className="text-sm font-semibold text-pp-blue-dark hover:underline">
             AG Studio dashboard →
           </Link>
         </div>

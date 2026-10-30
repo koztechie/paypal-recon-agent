@@ -1,0 +1,13 @@
+{
+ "pages": {
+  "/": [],
+  "/reconciliation": [],
+  "/agent": [],
+  "/settings": [],
+  "/negotiation": []
+ },
+ "totals": {
+  "critical": 0,
+  "serious": 0
+ }
+}
