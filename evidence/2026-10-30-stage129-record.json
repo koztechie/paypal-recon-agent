@@ -1,0 +1,22 @@
+{
+ "clip1": {
+  "path": "/tmp/pw91/vid/page@d42370ebbfb90274ea01b7c5ebcad585.webm",
+  "marks": {
+   "rows-ready": "2.9s",
+   "F1-filtered": "6.0s",
+   "F2-panel": "10.5s",
+   "F3-hold": "12.5s"
+  },
+  "errors": []
+ },
+ "clip2": {
+  "path": "/tmp/pw91/vid/page@6c6d67a36ce45fafb0ecdc5200b469a8.webm",
+  "marks": {
+   "F4-hero-cta": "7.9s",
+   "F5-agent": "11.4s",
+   "F6-settings": "14.7s"
+  },
+  "errors": []
+ },
+ "totalErrors": 0
+}
