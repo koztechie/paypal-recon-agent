@@ -93,7 +93,8 @@ export default async function AgentPage() {
             {data.actions.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-6 text-center text-pp-muted">
-                  No actions yet — the ledger fills up as the agent works.
+                  No actions yet — run <code className="rounded bg-pp-canvas px-1">npm run demo</code>{' '}
+                  (negotiate → invoice → payment) and the agent&apos;s trail fills up here.
                 </td>
               </tr>
             )}

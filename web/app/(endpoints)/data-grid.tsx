@@ -378,18 +378,39 @@ export function DataGrid({
     }
   }
 
-  // Empty state (stage 88): no data at all (fresh ledger) — a friendly card instead
-  // of an empty grid.
+  // Empty state (stage 88 + stage 105): no data at all — first run? An
+  // instructional card: how to get the first rows into the ledger.
   if (rows.length === 0) {
     return (
       <div className="flex min-h-0 flex-1 items-center justify-center">
-        <div className="w-full max-w-lg rounded border border-pp-border bg-pp-surface p-8 text-center">
-          <h2 className="text-lg font-semibold text-pp-navy">No rows yet</h2>
+        <section
+          aria-label="Empty ledger"
+          className="w-full max-w-2xl rounded border border-pp-border bg-pp-surface p-8 text-center"
+        >
+          <h2 className="text-lg font-semibold text-pp-navy">The ledger is empty — first run?</h2>
           <p className="mt-2 text-sm text-pp-muted">
-            The ledger fills up as PayPal webhooks arrive — send a sandbox payment or create an
-            invoice and it will appear here within seconds.
+            Nothing has reached the agent yet. Quickest ways to fill it:
           </p>
-        </div>
+          <ol className="mx-auto mt-4 max-w-xl list-decimal space-y-2 pl-5 text-left text-sm text-pp-ink">
+            <li>
+              <code className="rounded bg-pp-canvas px-1.5 py-0.5 font-semibold">npm run demo</code> —
+              the full two-agent demo (negotiate → invoice → payment); its rows land here within
+              seconds.
+            </li>
+            <li>
+              Send sandbox activity: PayPal webhooks arrive through the tunnel{' '}
+              <code className="rounded bg-pp-canvas px-1.5 py-0.5 font-semibold">ngrok start ecwid-dev</code>{' '}
+              and any payment or invoice syncs here automatically.
+            </li>
+            <li>
+              Watch the agent work on the <strong>Agent</strong> screen — every action it takes is
+              logged there (blocked attempts included).
+            </li>
+          </ol>
+          <p className="mt-4 text-xs text-pp-muted">
+            Rows appear without a page refresh once the first webhook arrives.
+          </p>
+        </section>
       </div>
     );
   }
