@@ -46,3 +46,29 @@ PAYMENT.CAPTURE.REVERSED
    `ref: INVOICING.INVOICE.CREATED` and a production-side `received_at`.
    (Both webhooks are subscribed → the event is delivered to dev AND prod.)
 4. Marker "an event from sandbox reaches production" = step3 PASS.
+
+## VERIFIED (2026-10-30): marker PASS — sandbox event reached production
+
+### Registration (user, PayPal dashboard)
+| Webhook | ID | Events |
+|---|---|---|
+| `https://paypal-recon-agent.onrender.com/webhook` | **83733119MV984010C** | **16** (3 dispute + 8 invoicing + 5 capture) |
+| dev ngrok (unchanged) | 2VN59522XH443900A | 16 |
+
+Independent confirmation via PayPal REST: prod webhook exists with the exact URL
+and 16 event types.
+
+### End-to-end trigger (automated)
+1. `createDraftInvoice` via the core shell → invoice `INV2-CMQN-S95T-9RQJ-JAJB`
+   ($1.00, note "stage118 test…") → PayPal emits `INVOICING.INVOICE.CREATED`.
+2. Poll `GET https://paypal-recon-agent.onrender.com/api/recon/rows?count=1`:
+   - first attempt returned EMPTY — the **free instance had spun down**
+     (Render warning: cold start up to ~50 s); lesson: poll with a ≥75 s timeout
+     (and warm the instance before demos).
+   - `poll 1 (retry): count=1`
+3. Final read of the prod ledger:
+   ```
+   EVENT | INVOICING.INVOICE.CREATED | 2026-10-30 16:14:10
+   ```
+
+**Marker «Подія з sandbox досягає продакшну» → PASS.**
