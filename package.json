@@ -20,6 +20,8 @@
     "stage96": "node --env-file-if-exists=.env.local scripts/stage96-invoice.ts",
     "stage97": "node --env-file-if-exists=.env.local scripts/stage97-confirm.ts",
     "stage98": "node --env-file-if-exists=.env.local scripts/stage98-limits.ts",
+    "demo": "node --env-file-if-exists=.env.local scripts/stage100-demo.ts",
+    "stage100": "npm run demo",
     "stage40": "node --env-file=.env.local scripts/stage40.ts",
     "stage41": "node --env-file=.env.local scripts/stage41.ts",
     "stage42": "node --env-file=.env.local scripts/stage42.ts",
