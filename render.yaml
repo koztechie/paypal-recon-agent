@@ -1,0 +1,32 @@
+# Render blueprint (stage 115): the agent API as a web service from this repo.
+# Health marker for stage 117 is /health (implemented in src/server.ts).
+# Secrets (PAYPAL_CLIENT_ID/SECRET, LLM_API_KEY, BASE_URL) are NOT stored here —
+# they are set in the Render dashboard (stage 116) with sync:false entries below.
+services:
+  - type: web
+    name: paypal-recon-agent
+    runtime: node
+    plan: free
+    region: frankfurt
+    repo: https://github.com/koztechie/paypal-recon-agent
+    branch: main
+    buildCommand: npm ci
+    startCommand: npm run start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: '22'
+      - key: PAYPAL_ENVIRONMENT
+        value: SANDBOX
+      - key: LLM_PROVIDER
+        value: gemini
+      - key: LLM_MODEL
+        value: gemini-3.5-flash-lite
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: LLM_API_KEY
+        sync: false
+      - key: BASE_URL
+        sync: false
