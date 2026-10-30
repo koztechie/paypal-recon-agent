@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { TopNav } from './components/top-nav';
+import { LiveRowCount } from './components/live-row-count';
 
 const dashboard = { href: '/dashboard', label: 'Dashboard', detail: 'AG Studio reports over all of the data' };
 
@@ -64,7 +65,10 @@ export default function Home() {
 
         {/* proof chips — evidence-backed facts, not hype */}
         <ul className="mt-8 flex flex-wrap gap-2 text-xs font-semibold text-pp-navy">
-          {['139 live rows', 'AI explains every mismatch', 'Audited guardrails'].map((chip) => (
+          <li>
+            <LiveRowCount />
+          </li>
+          {['AI explains every mismatch', 'Audited guardrails'].map((chip) => (
             <li key={chip} className="rounded-full border border-pp-border bg-white px-3 py-1">
               {chip}
             </li>

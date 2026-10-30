@@ -88,6 +88,7 @@ const server = createServer((req, res) => {
 	// `?bench=N` (1..5000) returns N deterministic synthetic rows instead — the
 	// performance fixture for stage 89 (1000 rows without freezes). Synthetic refs are
 	// prefixed BENCH- so they can never be mistaken for real records.
+	// `?count=1` returns only the row count (cheap, for the landing page chip).
 	if (req.method === "GET" && url.split("?")[0] === "/api/recon/rows") {
 		try {
 			const rows: Array<Record<string, unknown>> = [];
@@ -129,6 +130,21 @@ const server = createServer((req, res) => {
 					"Access-Control-Allow-Origin": "*",
 				});
 				res.end(JSON.stringify({ rows, bench: n }));
+				return;
+			}
+			if (/[?&]count=1/.test(url)) {
+				const db = getDb();
+				const c = (sql: string) =>
+					(db.prepare(sql).get() as { c: number }).c;
+				const count =
+					c("SELECT COUNT(*) c FROM payments") +
+					c("SELECT COUNT(*) c FROM invoices") +
+					c("SELECT COUNT(*) c FROM webhook_events");
+				res.writeHead(200, {
+					"Content-Type": "application/json",
+					"Access-Control-Allow-Origin": "*",
+				});
+				res.end(JSON.stringify({ count }));
 				return;
 			}
 			const pay = getDb()

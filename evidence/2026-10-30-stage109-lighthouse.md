@@ -31,3 +31,11 @@ Both landing runs clear the ≥80 bar; CLS is perfect on every page.
   behind `next/dynamic` with a skeleton to cut the initial-thread cost of the tool
   page. NOT done here — it would touch every UI path verified in stages 79–108,
   and the stage's own criterion (first render) already passes with margin.
+
+## Addendum (2026-10-30, stage 113 investigation)
+Re-measured under the machine's active load (load avg ~3, two Firefox + OpenCode):
+landing mobile72–76, desktop97. Controlled experiment: the stage-109 page shape
+(chip fetch removed) scored75 — and the JS payload is byte-comparable to the
+stage-109 run (11 scripts, +178 B). Conclusion: no code regression; the lab's 4× CPU
+simulation amplifies machine load. The recorded criterion run (86, quiet machine,
+full JSON in this directory) remains the valid measurement for stage 109.
