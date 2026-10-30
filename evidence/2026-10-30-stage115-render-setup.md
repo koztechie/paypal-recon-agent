@@ -115,3 +115,22 @@ Date: 2026-10-30 (plan date 09.11 — early)
   user copies them from their local .env.local into the Render dashboard directly.
 - Manual instruction issued to the user (names + exact dashboard path + verification:
   their screenshot of the Environment tab + my functional LLM probe on the public URL).
+
+## VERIFIED LIVE (2026-10-30): stage 115 + 117 closed
+- Service created from the Blueprint (user): **paypal-recon-agent**, Node, Free,
+  Service ID `srv-dbibg867bikc73amsdf0`, blueprint `exs-dbibe5flk1mc73fqnm30`,
+  repo main @ `4a5f319`, deploy `dep-dbibg8e7bikc73amse50` → **Live** (17:30–17:32).
+- **Public URL: `https://paypal-recon-agent.onrender.com`** (bare host was free).
+- My probes against the public URL:
+  | Probe | Result |
+  |---|---|
+  | `GET /health` | **200** `{"status":"ok","service":"paypal-reconciliation-agent"}` (stage-117 marker) |
+  | `GET /api/app-config` | ok · mode sandbox · gemini / gemini-3.5-flash-lite · limits intact |
+  | `POST /api/nl-filter "review payments"` | **`source: "llm", ms:1566`** — LLM_API_KEY works in prod (stage-116 functional proof) |
+  | `GET /api/recon/rows?count=1` | `{"count":0}` — fresh production DB (expected on day one; the stage-105 first-run screen will show) |
+- Remaining for stage 116: set `BASE_URL` in Environment to
+  `https://paypal-recon-agent.onrender.com` (left empty on the deploy screen by
+  design — value only exists after first deploy) + Environment-tab screenshot for
+  evidence (masked values only).
+- Note for stages 118–120: prod ledger starts EMPTY — plan the webhook/demo flow
+  accordingly (the stage-105 empty screen instructs a first run).
