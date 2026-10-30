@@ -103,3 +103,15 @@ Date: 2026-10-30 (plan date 09.11 — early)
   canonical `paypal-recon-agent-<hash>.onrender.com` URL, which the user must supply.
 - Stage stays ⏳ until /health answers 200 on the public URL (that check also closes
   stage 117's marker).
+
+## Stage 116 prep (2026-10-30)
+- Audited `process.env.*` usage in src/: the service needs PAYPAL_CLIENT_ID,
+  PAYPAL_CLIENT_SECRET, LLM_API_KEY (+ SANDBOX_BUYER_EMAIL used by /api/negotiate
+  contracts); PORT comes from Render; PAYPAL_ENVIRONMENT/LLM_PROVIDER/LLM_MODEL/
+  NODE_VERSION ship as blueprint defaults. BASE_URL is not read by src/ but is
+  declared for humans/future webhook code.
+- render.yaml updated: SANDBOX_BUYER_EMAIL added (sync:false) → 9 env keys, 5 secrets.
+- Secret VALUES are deliberately NOT echoed anywhere (chat/git/screenshots) — the
+  user copies them from their local .env.local into the Render dashboard directly.
+- Manual instruction issued to the user (names + exact dashboard path + verification:
+  their screenshot of the Environment tab + my functional LLM probe on the public URL).
