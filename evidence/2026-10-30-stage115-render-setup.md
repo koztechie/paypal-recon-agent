@@ -74,3 +74,21 @@ Date: 2026-10-30 (plan date 09.11 — early)
   privacy/translate extensions off → cookies → sign out/in). Official support paths
   per the sponsor page: Render Discord (https://render.com/discord), PayPal Discord,
   or devrel+credits@render.com (address shown on the failing page itself).
+
+## Credits outreach — full state (2026-10-30, continued)
+1. Email to devrel+credits@render.com — SENT (user).
+2. Render AI agent consulted: documented redemption path = **promo code at
+   Billing → Credit Balance → Apply**; "Origin not allowed" not in docs;
+   **hackathon credits are issued by the EVENT ORGANIZERS**, not by Render directly.
+3. Render Support (Dashboard contact form / support@render.com) — message drafted,
+   includes: portal fails at code-issue step, ask to coordinate a promo code with
+   organizers or fix the portal; account identified by GitHub `koztechie`
+   (no personal email in any public channel — user requirement).
+4. Organizer outreach — Discord `#general-hackathon-question` message drafted
+   (promo-code fallback request, cites Render's organizer-issued statement).
+5. Verified public organizer channels for an existing code: Devpost Updates titles
+   ("Two weeks to go…", "PayPal build session recording", "FAQs", "Live Build
+   Session Oct 6") contain NO Render/promo mentions; Discussions/FAQs — nothing.
+   No public promo code exists yet.
+6. Parallel track (independent of credits): step B service creation via Blueprint —
+   NOT started by the user yet.
