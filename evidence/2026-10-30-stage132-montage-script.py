@@ -141,7 +141,8 @@ with open(srt_path, "w", encoding="utf-8") as f:
 print("srt cues:", len(cues))
 import shutil
 # "-subs-source" suffix keeps VLC from auto-loading it OVER the burned subs
-shutil.copy(srt_path, f"{EV}/2026-10-30-stage132-demo-final-subs-source.srt")
+os.makedirs(f"{EV}/subs", exist_ok=True)
+shutil.copy(srt_path, f"{EV}/subs/2026-10-30-stage132-demo-final-en.srt")
 
 final = f"{EV}/2026-10-30-stage132-demo-final.mp4"
 style = ("FontName=DejaVu Sans,FontSize=17,Bold=0,PrimaryColour=&H00FFFFFF,"
