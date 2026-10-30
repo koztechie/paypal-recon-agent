@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { ColDef } from 'ag-grid-community';
 import { DataGrid, type Row } from './data-grid';
+import { TopNav } from '../components/top-nav';
 
 // The frame shared by the endpoint pages: which PayPal calls produced the data, which function in
 // lib/paypal.ts makes them, and the rows in an AG Grid.
@@ -35,9 +36,12 @@ export function EndpointPage({
 }) {
   return (
     <main className="flex h-dvh flex-col bg-pp-canvas px-8 py-6 font-paypal text-pp-ink">
-      <Link href="/" className="text-sm font-semibold text-pp-blue hover:underline">
-        ← All pages
-      </Link>
+      <div className="flex items-center justify-between gap-4">
+        <TopNav />
+        <Link href="/" className="text-sm font-semibold text-pp-blue hover:underline">
+          ← All pages
+        </Link>
+      </div>
       <h1 className="mt-3 text-[28px] font-semibold text-pp-navy">{title}</h1>
       <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-pp-muted">
         {calls.map((call) => (

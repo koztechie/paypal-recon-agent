@@ -415,6 +415,84 @@ const server = createServer((req, res) => {
 		return;
 	}
 
+	// Stage 104: data for the Agent screen (audit trail + agent runtime facts).
+	if (req.method === "GET" && url.split("?")[0] === "/api/agent-summary") {
+		try {
+			const db = getDb();
+			const actions = db
+				.prepare(
+					`SELECT id, action, limit_check, target_ref, executed, executed_at, llm_decision
+           FROM agent_actions ORDER BY id DESC LIMIT 20`,
+				)
+				.all() as Array<Record<string, unknown>>;
+			const totals = db
+				.prepare(
+					`SELECT COUNT(*) total,
+              SUM(CASE WHEN limit_check='BLOCKED' THEN 1 ELSE 0 END) blocked,
+              SUM(CASE WHEN executed=1 THEN 1 ELSE 0 END) executed
+       FROM agent_actions`,
+				)
+				.get() as { total: number; blocked: number | null; executed: number | null };
+			res.writeHead(200, {
+				"Content-Type": "application/json",
+				"Access-Control-Allow-Origin": "*",
+			});
+			res.end(
+				JSON.stringify({
+					ok: true,
+					actions,
+					totals: {
+						total: totals.total,
+						blocked: totals.blocked ?? 0,
+						executed: totals.executed ?? 0,
+					},
+					llm: {
+						provider: (process.env.LLM_PROVIDER ?? "gemini").toLowerCase(),
+						model:
+							process.env.LLM_MODEL ||
+							((process.env.LLM_PROVIDER ?? "gemini").toLowerCase() === "gemini"
+								? "gemini-3.5-flash-lite"
+								: "llama-3.3-70b-versatile"),
+					},
+				}),
+			);
+			return;
+		} catch (e) {
+			res.writeHead(500, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ ok: false, error: String(e) }));
+			return;
+		}
+	}
+
+	// Stage 104: configuration view for the Settings screen (facts only, no secrets).
+	if (req.method === "GET" && url.split("?")[0] === "/api/app-config") {
+		res.writeHead(200, {
+			"Content-Type": "application/json",
+			"Access-Control-Allow-Origin": "*",
+		});
+		res.end(
+			JSON.stringify({
+				ok: true,
+				mode: "sandbox",
+				llm: {
+					provider: (process.env.LLM_PROVIDER ?? "gemini").toLowerCase(),
+					model: process.env.LLM_MODEL || "gemini-3.5-flash-lite",
+					fallback: "deterministic rule-based parser (on timeout/error)",
+				},
+				limits: {
+					create_invoice_usd: 500,
+					reminders_per_24h: 1,
+					reminders_lifetime: 3,
+					negotiation_max_rounds: 10,
+					nl_deadline_ms: 14_000,
+				},
+				defaults: { payment_days: 7 },
+				source: "env + code constants (.env.local / SECURITY rules)",
+			}),
+		);
+		return;
+	}
+
 	res.writeHead(200, { "Content-Type": "text/plain" });
 	res.end(
 		"PayPal Reconciliation Agent — under active development. See README.md\n",
