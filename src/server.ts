@@ -30,6 +30,13 @@ const PORT = Number(process.env.PORT ?? 3000);
 const server = createServer((req, res) => {
 	const url = req.url ?? "/";
 
+	// Diagnostic access log (stage 122): API traffic becomes visible in the service
+	// logs (Render Logs tab / npm run dev output). /health is excluded on purpose —
+	// Render's health checks would flood it.
+	if (url.startsWith("/api/")) {
+		console.log(`[req] ${req.method} ${url.split("?")[0]}`);
+	}
+
 	if (url.startsWith("/health")) {
 		res.writeHead(200, { "Content-Type": "application/json" });
 		res.end(
