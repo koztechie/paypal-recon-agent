@@ -39,7 +39,7 @@ print(f"total (audio-driven): {total:.2f}s")
 CLIP1 = f"{EV}/2026-10-30-stage129-1-problem.mp4"
 CLIP2 = f"{EV}/2026-10-30-stage129-2-product-start.mp4"
 TAKE = f"{EV}/2026-10-30-stage130-e2e-onetake.mp4"
-V2 = "/tmp/pw91/vid2"
+V2 = f"{EV}/2026-10-31-vid2-raw"  # committed raws — /tmp wipes were the problem
 
 # ---------- SEG 1: problem (vo-1) ----------
 # crop off the page header (nav/title/count — count contradicts the VO numeral),
@@ -64,18 +64,23 @@ ai = dur(f"{V2}/ai-panel.webm")
 host = dur(f"{V2}/hosted.webm")
 filt = dur(f"{V2}/filters.webm")
 a3 = vo_d[2]
-# budget split retuned for the 31.10 re-record (nego~11.8 ai~5.5 hosted~4.1 filters~6.5)
-s_n, s_c, s_a, s_h = min(11.75, neg - 0.05), 13.4, min(5.45, ai - 0.05), min(4.05, host - 0.05)
+# 31.10 pacing fix (user review: "rapid frames then long static"):
+# clip1/clip2 re-recorded with action spread over the whole VO (no freeze tails);
+# negotiation re-recorded until fast (settle 5.8s, raw 14.56s) so s_n = 14.0
+# again equals sub1+sub2 exactly and the window [0,14] is action throughout.
+# filters window shifted +1s: skips the initial page load and no longer ENDS
+# on the post-clear "Loading" flash.
+s_n, s_c, s_a, s_h = min(14.0, neg - 0.05), 12.0, min(6.0, ai - 0.05), min(5.0, host - 0.05)
 s_f = round(a3 - s_n - s_c - s_a - s_h, 3)
 assert s_f > 0, f"filters slice {s_f}"
 assert neg > s_n and ai >= s_a and host >= s_h and filt >= s_f - 0.5, "slice exceeds source"
 print(f"S3 slices: nego{s_n} console{s_c} ai{s_a} hosted{s_h} filters{s_f} = {s_n+s_c+s_a+s_h+s_f:.3f} vs {a3:.3f}")
 run(f'ffmpeg -y -loglevel error -i "{V2}/negotiation.webm" -i "{TAKE}" -i "{V2}/ai-panel.webm" -i "{V2}/hosted.webm" -i "{V2}/filters.webm" -i "{vo[2]}" '
     f'-filter_complex "[0:v]trim=0:{s_n},setpts=PTS-STARTPTS[v0];'
-    f'[1:v]trim=10.5:23.9,setpts=PTS-STARTPTS,scale=1280:900:force_original_aspect_ratio=decrease,pad=1280:900:(ow-iw)/2:(oh-ih)/2:color=black[v1];'
+    f'[1:v]trim=10.5:{10.5 + s_c},setpts=PTS-STARTPTS,scale=1280:900:force_original_aspect_ratio=decrease,pad=1280:900:(ow-iw)/2:(oh-ih)/2:color=black[v1];'
     f'[2:v]trim=0:{s_a},setpts=PTS-STARTPTS[v2];'
     f'[3:v]trim=0.3:{0.3 + s_h},setpts=PTS-STARTPTS[v3];'
-    f'[4:v]trim=0:{s_f},setpts=PTS-STARTPTS[v4];'
+    f'[4:v]trim=1.0:{1.0 + s_f},setpts=PTS-STARTPTS[v4];'
     f'[v0][v1][v2][v3][v4]concat=n=5:v=1:a=0[v];'
     f'[v]tpad=stop_mode=clone:stop_duration=6,setsar=1,fps=30,format=yuv420p[vf];'
     f'[5:a]aresample=44100,apad,atrim=0:{a3}[a]" '

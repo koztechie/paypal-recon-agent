@@ -30,3 +30,25 @@ hosted head-skip removes the ≤0.3s white navigation frame found in review):
 **FINAL = 100.8s, 13 burned cues, audio-driven** — `2026-10-30-stage132-demo-final.mp4`.
 Verified frames: S1 ledger crop (red UNMATCHED pills + detail panel), home CTA,
 hosted demo (no white frame). Subs still a single burned set (ffprobe: 0 sub streams).
+
+## Video pacing fix (user review #2, same day): "rapid frames, then long static"
+
+Root cause found with `freezedetect` + frame strips: the recordings were shorter
+than their VO segments, so all action crammed into the first seconds and `tpad`
+froze the tail — **seg1 held one static frame ~13s** (filter burst in first 4.7s),
+**seg2 held Settings ~14s**. The negotiation slice also drifted off the sub-perfect
+14.0s budget (= sub1+sub2 exactly).
+
+Fixes (all re-recorded, 0 console/page errors):
+| Clip | Was | Now |
+|---|---|---|
+| clip1 | filter+panel in 4.7s → 13s frozen | 16.6s of paced action: rows → filter popup → typed UNMATCHED → panel → **switch row** → close/reopen → **sort by Amount** |
+| clip2 | 4 pages in 9s → Settings frozen 14s | 29.3s: hero 4.2 → CTA+load → **search USD/clear** → agent **+scroll** → settings **+scroll** (VO tail trimmed by `-t`, zero freeze) |
+| negotiation | slow-LLM run: 36s empty wait | retried until fast (settle **5.8s**, raw 14.56s); window [0,14] = thinking → rounds → Settled → contract; **s_n restored to 14.0** (sub alignment exact again) |
+| hosted / outro | hit cold Render (50s) | re-recorded warm: 4.6s / 14.5s |
+| filters | ended on post-clear "Loading" flash | window shifted +1s — ends on full grid + Export |
+
+Post-fix `freezedetect`: no static block in 0–41s longer than **2.9s** (seg1) /
+**5.3s** (Settings hold, narrated); the only long holds left are the contract
+reveal and the final URL end-card — deliberate beats. Strips of every segment
+visually reviewed. Raw vid2 clips committed for montage rerunnability.
