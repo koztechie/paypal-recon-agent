@@ -35,6 +35,33 @@ and the hosted browser demo. English voiceover with burned-in subtitles.
 **Hosted demo — no install, same AI layer, from any browser:**
 <img src="evidence/screenshots/2026-10-31-readme-05-hosted.png" alt="Hosted browser demo with a live AI answer" width="760">
 
+## How AI is used
+
+**Model.** Gemini (`gemini-3.5-flash-lite` by default) behind a thin
+provider-agnostic layer — `LLM_PROVIDER`, `LLM_MODEL`, `LLM_API_KEY` in
+`.env.local`. Every AI call runs under a **14 s budget** and falls back to
+deterministic rules, so a slow or missing model never blocks the product.
+
+**Tools.** PayPal access goes through the
+[PayPal Agent Toolkit](https://github.com/paypal/agent-toolkit):
+`create_invoice`, `send_invoice`, `get_invoice`, `list_invoices`,
+`record_payment_for_invoice`, `send_invoice_reminder` (plus read-only
+transactions/disputes lookups). Destructive operations — cancel, delete, refund,
+accepting a dispute — are on the **red list: human-only, never exposed to the agent**.
+
+**The chain — where the model actually runs:**
+
+1. **Plain English → filter** (`/api/nl-filter`): *"show unmatched payments over $50"*
+   → validated filter JSON → grid. Slow or absent LLM → deterministic keyword parser.
+2. **Row explanations** (`/api/explain`): the insight in the detail panel, with the
+   source labeled in the UI — `via llm · 0.7s` or `via fallback · …`.
+3. **Negotiation**: two LLM agents (buyer vs. seller) exchange messages inside hard
+   budgets and a round cap **the model itself cannot exceed** → agreement → validated
+   contract JSON → invoice through a tool call.
+4. **Actions**: tool call → guardrail policy (`enforceActionPolicy`: amount limit,
+   rate limits, allowed operation) → PayPal API → append-only audit trail (blocked
+   attempts are logged too — see the **Agent** screen).
+
 ## Quick start — 3 commands on a fresh machine
 
 ```bash
