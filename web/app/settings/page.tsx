@@ -54,6 +54,7 @@ export default async function SettingsPage() {
 
   return (
     <main className="flex h-dvh flex-col bg-pp-canvas px-8 py-6 font-paypal text-pp-ink">
+      <div className="mx-auto w-full max-w-[1400px]">
       <div className="flex items-center justify-between gap-4">
         <TopNav />
         <Link href="/" className="text-sm font-semibold text-pp-blue-dark hover:underline">
@@ -82,6 +83,7 @@ export default async function SettingsPage() {
           </section>
         ))}
       </div>
+    </div>
     </main>
   );
 }

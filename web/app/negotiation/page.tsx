@@ -71,6 +71,7 @@ export default function NegotiationWindow() {
 
   return (
     <main className="min-h-dvh bg-pp-canvas px-8 py-6 font-paypal text-pp-ink">
+      <div className="mx-auto w-full max-w-[1400px]">
       <div className="flex items-center justify-between gap-4">
         <TopNav />
         <Link href="/" className="text-sm font-semibold text-pp-blue-dark hover:underline">
@@ -172,6 +173,7 @@ export default function NegotiationWindow() {
           </dl>
         </section>
       )}
+    </div>
     </main>
   );
 }
