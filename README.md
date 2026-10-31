@@ -9,6 +9,32 @@ actions, full action logging).
 Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/)
 (deadline Nov 12, 2026).
 
+**Who it's for:** freelancers and international sellers who get paid via PayPal
+across borders — every mismatch costs an hour of manual work, or a chargeback.
+
+## Demo video (1:41)
+
+▶ **[Watch on YouTube](https://youtu.be/7WFiknEULyU)** — the problem, the product,
+a live end-to-end sandbox cycle (negotiate → invoice → pay → reconcile → explain),
+and the hosted browser demo. English voiceover with burned-in subtitles.
+
+## Screenshots
+
+**Home — what it is, one screen:**
+<img src="evidence/screenshots/2026-10-31-readme-01-home.png" alt="Home — Cross-Border Reconciliation Agent" width="760">
+
+**The Ledger — live rows, status pills, AI-explained decision (`via llm`):**
+<img src="evidence/screenshots/2026-10-31-readme-02-ledger-ai.png" alt="Reconciliation ledger with an AI-explained row" width="760">
+
+**Negotiation — two agents settle into a validated contract:**
+<img src="evidence/screenshots/2026-10-31-readme-03-negotiation.png" alt="Negotiation settled with a contract" width="760">
+
+**Agent — append-only audit trail, guardrail refusals included:**
+<img src="evidence/screenshots/2026-10-31-readme-04-agent.png" alt="Agent audit trail with guardrail decisions" width="760">
+
+**Hosted demo — no install, same AI layer, from any browser:**
+<img src="evidence/screenshots/2026-10-31-readme-05-hosted.png" alt="Hosted browser demo with a live AI answer" width="760">
+
 ## Quick start — 3 commands on a fresh machine
 
 ```bash
