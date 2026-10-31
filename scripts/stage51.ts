@@ -18,7 +18,10 @@ const exec = (t: unknown) =>
 // 1) Find or create invoice #9301 with a UNIQUE amount ($43.50).
 const listed = parseToolResult(
 	await exec(tools.list_invoices).execute(
-		{ page: 1, page_size: 20 },
+		// page_size=100 (was20): by the stage-144 QA run the sandbox held57
+		// invoices and the fixed number fell out of page1 -> find missed ->
+		// create crashed with "Invoice number is duplicate".
+		{ page: 1, page_size: 100 },
 		{ toolCallId: "find", messages: [] },
 	),
 ) as {

@@ -18,7 +18,10 @@ const AMOUNT = "52.25"; // unique
 // 1) Find or create invoice #9401.
 const listed = parseToolResult(
 	await exec(tools.list_invoices).execute(
-		{ page: 1, page_size: 20 },
+		// page_size=100 (was20): by the stage-144 QA run the sandbox held57
+		// invoices and the fixed number fell out of page1 -> find missed ->
+		// create crashed with "Invoice number is duplicate".
+		{ page: 1, page_size: 100 },
 		{ toolCallId: "find", messages: [] },
 	),
 ) as { items?: Array<{ id?: string; detail?: { invoice_number?: string } }> };
@@ -56,21 +59,36 @@ if (!invoiceId) {
 	console.log("invoice exists:", invoiceId);
 }
 
-// 2) REMINDER step (the distinguishing feature of E2E #2; rate-limit aware).
-const gate = checkReminderAllowed(invoiceId);
-console.log("reminder gate:", gate.reason);
-if (gate.allowed) {
-	const r = parseToolResult(
-		await exec(tools.send_invoice_reminder).execute(
-			{ invoice_id: invoiceId, note: "Friendly E2E #2 reminder (stage 52)" },
-			{ toolCallId: "remind", messages: [] },
-		),
-	);
-	console.log("reminder sent ✓", JSON.stringify(r).slice(0, 60));
-} else {
+// 2) REMINDER step — state-aware: PayPal rejects reminders on PAID invoices (422),
+// so a rerun of the completed scenario skips to the verification tail. All five
+// checks below re-read persisted state (ledger file, invoice, payments row, recon).
+const pre = parseToolResult(
+	await exec(tools.get_invoice).execute(
+		{ invoice_id: invoiceId },
+		{ toolCallId: "pre", messages: [] },
+	),
+) as { status?: string };
+if (pre.status === "PAID" || pre.status === "MARKED_AS_PAID") {
 	console.log(
-		"reminder skipped by rate limit (already reminded in this window)",
+		`invoice already ${pre.status} — reminder/pay skipped (rerun path)`,
 	);
+} else {
+	// 2) REMINDER step (the distinguishing feature of E2E #2; rate-limit aware).
+	const gate = checkReminderAllowed(invoiceId);
+	console.log("reminder gate:", gate.reason);
+	if (gate.allowed) {
+		const r = parseToolResult(
+			await exec(tools.send_invoice_reminder).execute(
+				{ invoice_id: invoiceId, note: "Friendly E2E #2 reminder (stage 52)" },
+				{ toolCallId: "remind", messages: [] },
+			),
+		);
+		console.log("reminder sent ✓", JSON.stringify(r).slice(0, 60));
+	} else {
+		console.log(
+			"reminder skipped by rate limit (already reminded in this window)",
+		);
+	}
 }
 
 const full = parseToolResult(

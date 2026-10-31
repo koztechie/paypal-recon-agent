@@ -11,7 +11,9 @@ const tools = createPaypalToolkit().getTools();
 const db = getDb();
 const exec = (t: unknown) =>
 	t as { execute: (a: unknown, o: unknown) => Promise<string> };
-const NUM = "9501";
+// Unique per run: the fixed "9501" was already fully paid by the28.10 run, and
+// replaying a partial payment on a PAID invoice422s (caught by stage144 QA).
+const NUM = `9501-${Date.now() % 100000}`;
 const TOTAL = "75.00";
 const FIRST = "40.00";
 const REST = "35.00";
@@ -25,7 +27,10 @@ db.prepare("DELETE FROM payments WHERE paypal_payment_id LIKE 'QA-R3%'").run();
 // 1) Invoice #9501 $75 (find-or-create) + send.
 const listed = parseToolResult(
 	await exec(tools.list_invoices).execute(
-		{ page: 1, page_size: 20 },
+		// page_size=100 (was20): by the stage-144 QA run the sandbox held57
+		// invoices and the fixed number fell out of page1 -> find missed ->
+		// create crashed with "Invoice number is duplicate".
+		{ page: 1, page_size: 100 },
 		{ toolCallId: "find", messages: [] },
 	),
 ) as { items?: Array<{ id?: string; detail?: { invoice_number?: string } }> };

@@ -1,0 +1,58 @@
+{
+  "scenario": "grid (stage91 flow via stage144)",
+  "started": "2026-10-31T21:37:06.018Z",
+  "open": {
+    "ms": 1936,
+    "rowsBefore": 23
+  },
+  "nl1": {
+    "ms": 1886,
+    "query": "show unmatched payments over $50",
+    "rows": 2,
+    "reconCells": [
+      "UNMATCHED",
+      "UNMATCHED"
+    ]
+  },
+  "nl2": {
+    "ms": 1749,
+    "query": "show payments in review",
+    "rows": 1,
+    "reconCells": [
+      "REVIEW"
+    ]
+  },
+  "markMatched": {
+    "ms": 5387,
+    "row": "QA-X3",
+    "visibleRows": 1,
+    "status": "MATCHED",
+    "pillColor": "rgb(0, 96, 58)"
+  },
+  "pageErrors": [],
+  "finished": "2026-10-31T21:37:18.245Z",
+  "checks": [
+    {
+      "name": "open ledger with rows",
+      "ok": true
+    },
+    {
+      "name": "NL #1 narrows grid to UNMATCHED-only rows",
+      "ok": true
+    },
+    {
+      "name": "NL #2 surfaces REVIEW rows for the human action",
+      "ok": true
+    },
+    {
+      "name": "action -> row QA-X3 is MATCHED (green pill) on the full grid",
+      "ok": true
+    },
+    {
+      "name": "zero page/console errors + evidence JSON written",
+      "ok": true
+    }
+  ],
+  "pass": 5,
+  "total": 5
+}
