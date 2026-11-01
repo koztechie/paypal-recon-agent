@@ -221,6 +221,22 @@ const server = createServer((req, res) => {
 						logLine(
 							`[webhook] invoice-paid row: ${paymentId ?? "none"} (${dedupe})`,
 						);
+						// Self-healing book (C-2 follow-up): reconcile immediately so the
+						// public ledger becomes correct WITHOUT a token-gated
+						// /api/recon/run call after every deploy. Idempotent — only
+						// unreconciled payments are processed.
+						try {
+							const auto = await reconcilePending(
+								createPaypalToolkit().getTools(),
+								getDb(),
+							);
+							logLine(`[webhook] auto-reconciled: ${auto.length} outcome(s)`);
+						} catch (autoErr) {
+							logError(
+								"[webhook] auto-reconcile failed (manual token-gated /api/recon/run remains available):",
+								autoErr,
+							);
+						}
 					}
 				} catch (dbErr) {
 					logError("[webhook] db error:", dbErr);
