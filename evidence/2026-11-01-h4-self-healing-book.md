@@ -39,3 +39,14 @@ honestly: null-prototype rows vs deepEqual; noUncheckedIndexedAccess.)
 | Prod after the deploy from this commit | see the follow-up verification below |
 
 **H-4 status: FIXED + VERIFIED LOCALLY; prod proof follows the deploy.**
+
+## Prod verification (after deploy `156a673` — NO seed cycle run)
+| Check | Result |
+|---|---|
+| `health` | 200 |
+| `rows?count=1` | **194** — restored automatically on the wiped ephemeral disk |
+| rows detail | **31 MATCHED payments**,134 events — the judge-facing book, seconds after deploy |
+| `nl-filter` (demo) | 200 · `/api/action` without token | 401 (C-2 armed) |
+
+**H-4 status: FIXED + VERIFIED ON PROD — deploys are now self-healing (the manual
+re-seed ritual, used7 times earlier today, is no longer needed).**
