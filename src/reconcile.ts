@@ -7,6 +7,7 @@
  */
 import type { DatabaseSync } from "node:sqlite";
 import type { ToolkitTools } from "./paypal.ts";
+import { listAllInvoices as fetchAllInvoiceItems } from "./paypal.ts";
 
 export interface PaymentRow {
 	id: number;
@@ -47,20 +48,11 @@ function parseRaw(raw: string): Record<string, unknown> {
 	}
 }
 
-async function listAllInvoices(tools: ToolkitTools): Promise<InvoiceLite[]> {
-	const execute = (
-		tools.list_invoices as unknown as {
-			execute: (a: unknown, o: unknown) => Promise<unknown>;
-		}
-	).execute;
-	const raw = await execute(
-		{ page: 1, page_size: 20, total_required: true },
-		{ toolCallId: "recon-list", messages: [] },
-	);
-	const data = JSON.parse(String(raw)) as {
-		items?: Array<Record<string, unknown>>;
-	};
-	return (data.items ?? []).map((i) => {
+async function listInvoicesLite(tools: ToolkitTools): Promise<InvoiceLite[]> {
+	// H-3: fetch EVERY page (the old helper only read page1 of20 despite
+	// total_required — invoices beyond it produced false UNMATCHED).
+	const all = await fetchAllInvoiceItems(tools);
+	return all.map((i) => {
 		const detail = (i.detail ?? {}) as Record<string, unknown>;
 		const amount = (i.amount ?? {}) as {
 			value?: string;
@@ -93,7 +85,7 @@ export async function reconcilePayment(
 				? raw.reference
 				: undefined;
 
-	const invoices = await listAllInvoices(tools);
+	const invoices = await listInvoicesLite(tools);
 
 	if (refNumber) {
 		const inv = invoices.find((i) => i.invoice_number === refNumber);

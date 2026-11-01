@@ -88,3 +88,38 @@ export function createPaypalToolkit(): PayPalAgentToolkit {
 }
 
 export type ToolkitTools = ReturnType<PayPalAgentToolkit["getTools"]>;
+
+/**
+ * H-3: full pagination over the invoice list — reconciliation and the reminder
+ * agent must see EVERY invoice, not just page1 (the sandbox already outgrew the
+ * old hardcoded20). `total_required: true` reports `total_pages`; the loop ALSO
+ * stops on a short page (defense) and has a hard page cap so a malformed API
+ * can never hang the product.
+ */
+export async function listAllInvoices(
+	tools: ToolkitTools,
+	pageSize = 100,
+): Promise<Array<Record<string, unknown>>> {
+	const execute = (
+		tools.list_invoices as unknown as {
+			execute: (a: unknown, o: unknown) => Promise<unknown>;
+		}
+	).execute;
+	const items: Array<Record<string, unknown>> = [];
+	const MAX_PAGES = 50; // hard safety cap: 50 * 100 = 5000 invoices
+	for (let page = 1; page <= MAX_PAGES; page++) {
+		const raw = await execute(
+			{ page, page_size: pageSize, total_required: true },
+			{ toolCallId: `list-all-${page}`, messages: [] },
+		);
+		const data = JSON.parse(String(raw)) as {
+			items?: Array<Record<string, unknown>>;
+			total_pages?: number;
+		};
+		const batch = data.items ?? [];
+		items.push(...batch);
+		if (typeof data.total_pages === "number" && page >= data.total_pages) break;
+		if (batch.length < pageSize) break;
+	}
+	return items;
+}
