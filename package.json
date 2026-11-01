@@ -50,7 +50,8 @@
     "stage70": "node --env-file=.env.local scripts/stage70.ts",
     "stage71": "node --env-file=.env.local scripts/stage71.ts",
     "stage72": "node --env-file=.env.local scripts/stage72.ts",
-    "stage73": "node --env-file=.env.local scripts/stage73.ts"
+    "stage73": "node --env-file=.env.local scripts/stage73.ts",
+    "book:export": "node --env-file-if-exists=.env.local scripts/export-book-snapshot.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.6.3",

@@ -3,13 +3,14 @@
  * Zero runtime dependencies: node:http only.
  * Routes: GET /health -> 200 (marker for stage 32), GET / -> app stub.
  */
-import { appendFileSync, mkdirSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import {
 	createServer,
 	type IncomingMessage,
 	type ServerResponse,
 } from "node:http";
 import { checkActionAuth } from "./api-auth.ts";
+import { type BookSnapshot, restoreBookIfEmpty } from "./book.ts";
 import { buildContract } from "./contract.ts";
 import { corsHeadersFor } from "./cors.ts";
 import {
@@ -135,6 +136,28 @@ const ALLOWED_ORIGINS = (
 	.split(",")
 	.map((o) => o.trim())
 	.filter(Boolean);
+
+// H-4: self-healing book — Render's free disk dies on every deploy/restart, so an
+// EMPTY database is restored from the COMMITTED sanitized snapshot at boot
+// (never clobbers a live book; ADR-020 documents the paid persistent-disk upgrade).
+try {
+	if (existsSync("seed/book-snapshot.json")) {
+		const snap = JSON.parse(
+			readFileSync("seed/book-snapshot.json", "utf8"),
+		) as BookSnapshot;
+		const outcome = restoreBookIfEmpty(getDb(), snap);
+		logLine(`[server] book snapshot restore: ${outcome}`);
+	} else {
+		logLine(
+			"[server] book snapshot: seed/book-snapshot.json not found — starting empty",
+		);
+	}
+} catch (e) {
+	logError(
+		"[server] book snapshot restore failed (continuing with an empty book):",
+		e,
+	);
+}
 
 const server = createServer((req, res) => {
 	const url = req.url ?? "/";

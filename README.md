@@ -119,6 +119,9 @@ filters, AI explanations, row actions, NL queries), **Negotiation demo** window,
 ## Hosted service (no install)
 
 - Health: <https://paypal-recon-agent.onrender.com/health> → `200`
+- The book is **self-healing**: an empty database is restored at boot from the
+  committed sanitized snapshot (`seed/book-snapshot.json`), so deploys never lose
+  the demo data.
   (free instance sleeps — the first hit may take ~50 s).
 - Public API (keyless demo surfaces): `/api/nl-filter` (ask in plain English),
   `/api/explain` (row explanations), `/api/app-config` (runtime config, no secrets).

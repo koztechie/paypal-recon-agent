@@ -13,6 +13,13 @@ services:
     buildCommand: npm ci
     startCommand: npm run start
     healthCheckPath: /health
+    # H-4 data strategy: the free plan has an EPHEMERAL disk (data/recon.db dies on
+    # every deploy/restart). Self-healing is built in: at boot the server restores
+    # the COMMITTED sanitized snapshot seed/book-snapshot.json into an EMPTY book
+    # (npm run book:export refreshes it before a commit). TRUE persistence upgrade
+    # path (user, billing): Render dashboard -> service -> Disks -> Add Disk
+    # (e.g. mount /var/data) + env DB_PATH=/var/data/recon.db, on a paid instance —
+    # the code already honors DB_PATH (see ADR-020).
     envVars:
       - key: NODE_VERSION
         value: '22'
