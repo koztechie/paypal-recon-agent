@@ -40,3 +40,28 @@ Render → service → Environment → `ACTION_TOKEN=<value>` → save. Then: pr
 `/api/action` without a token must 401, and the mini-demo must still answer.
 
 **C-2 status: FIXED (local proofs) — prod activation pending the env var.**
+
+## Prod activation & verification (after the user set ACTION_TOKEN)
+
+| Call on prod (no/wrong credentials) | Result |
+|---|---|
+| `/api/action` no token | **401** + hint |
+| `/api/action` wrong Bearer | **401** |
+| `/api/recon/run` no token | **401** |
+| `/api/negotiate` no token | **401** |
+| `/` (mini-demo) · `/api/nl-filter` · `/health` | **200 · 200 `source:llm` · 200** — keyless demo intact |
+
+Re-confirmed again AFTER the follow-up deploy (env persists across deploys).
+
+## Self-healing book (follow-up commit `c70f83f`)
+The C-2 lockdown made the post-deploy re-seed awkward (recon/run needs the token
+nobody should share), so the webhook handler now **auto-reconciles right after an
+`INVOICING.INVOICE.PAID` event is stored** (idempotent incremental; manual
+token-gated `/api/recon/run` remains as catch-up). Live proof on prod, zero token
+calls from the verifier: real signed cycle `SEED-C2-99919` → `INV2-TUN2-XRVF-ZZH3-2K2V`
+→ paid → public rows poll: `absent → MATCHED` (auto), book =4 rows, judges see data.
+
+Housekeeping: the one-off seed script was accidentally swept into `c70f83f` by
+`git add -A` and removed in `8b77cbb` (operational temp, not repo tooling).
+
+**C-2 status: FIXED + VERIFIED ON PROD (2026-11-01).**
