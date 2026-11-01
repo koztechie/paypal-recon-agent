@@ -115,4 +115,16 @@ SSG/ISR cache-poisoning, image-optimization SSRF and Draft-Mode GHSA cluster).
 Policy: never `audit fix --force`; every override or major bump is kept only after
 the real probe battery stays green (tsc, unit tests, dry-run E2E, live LLM probe,
 live PayPal SDK call); residuals are registered with reachability reasoning.
+## Rule 10 — Bound optional AI proxies
+
+The AG Studio assistant proxy (`web/app/api/ai/responses`, security finding **C-5**
+fixed 2026-11-01) may forward to OpenAI with the server key only behind
+`web/lib/ai-limits.ts`: **local-only** (Origin AND Host must be localhost/127.0.0.1;
+an evil page in the browser carries its own Origin and text/plain POSTs skip the
+preflight — that is the credit-burn vector) and **bounded** (streamed read capped at
+64 KB with a Content-Length pre-check, `messages` ≤50 entries, model allowlist,
+`max_output_tokens` cap). The key is absent from fresh clones, the assistant UI
+stays hidden without it, and a non-local Host gets `503` — deploying web/ cannot
+silently expose the proxy. Live probes: evil/`null`/foreign Host →503,70 KB →413,
+51 messages →400, valid+unconfigured →503, dashboard →200.
 *If a rule and a feature conflict, the rule wins. Report the conflict in `DECISIONS.md` as a new ADR.*
