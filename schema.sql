@@ -34,10 +34,12 @@ CREATE TABLE IF NOT EXISTS invoices (
     subtotal_minor      INTEGER NOT NULL CHECK (subtotal_minor >= 0),
     fee_minor           INTEGER NOT NULL DEFAULT 0 CHECK (fee_minor >= 0),
     total_minor         INTEGER NOT NULL CHECK (total_minor >= 0),
-    status              TEXT NOT NULL           -- DRAFT|SENT|PARTIALLY_PAID|PAID|
+    status              TEXT NOT NULL           -- full PayPal invoice vocabulary (H-5)
                             CHECK (status IN
-                            ('DRAFT','SENT','PARTIALLY_PAID','PAID',
-                             'CANCELLED','REFUNDED','MARKED_AS_PAID')),
+                            ('DRAFT','SENT','SCHEDULED','UNPAID','PAYMENT_PENDING',
+                             'PAID','PARTIALLY_PAID','MARKED_AS_PAID','CANCELLED',
+                             'REFUNDED','PARTIALLY_REFUNDED','MARKED_AS_REFUNDED',
+                             'UNKNOWN')),
     issued_at           TEXT,
     due_at              TEXT,
     paid_at             TEXT,

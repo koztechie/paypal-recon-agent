@@ -6,6 +6,7 @@
  * ai_explanation is rule-based for now; LLM explanation arrives at stages 59-65.
  */
 import type { DatabaseSync } from "node:sqlite";
+import { normalizeInvoiceStatus } from "./db.ts";
 import type { ToolkitTools } from "./paypal.ts";
 import { listAllInvoices as fetchAllInvoiceItems } from "./paypal.ts";
 
@@ -224,7 +225,7 @@ function upsertLocalInvoice(
 		facts?.invoice_number ?? null,
 		facts?.currency ?? "USD",
 		facts?.total_minor ?? 0,
-		facts?.status ?? "SENT",
+		normalizeInvoiceStatus(facts?.status ?? "SENT"),
 		facts?.issued_at ?? null,
 		paypalId,
 	);
