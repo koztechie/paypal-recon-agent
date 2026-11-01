@@ -1,7 +1,7 @@
 {
   "name": "paypal-reconciliation-agent",
   "version": "0.1.0",
-  "description": "Cross-border reconciliation agent for PayPal — AI Hackathon 2026",
+  "description": "Cross-border reconciliation agent for PayPal \u2014 AI Hackathon 2026",
   "type": "module",
   "license": "MIT",
   "private": false,
@@ -60,5 +60,10 @@
   "dependencies": {
     "@paypal/agent-toolkit": "^1.11.0",
     "zod-to-json-schema": "^3.25.2"
+  },
+  "overrides": {
+    "uuid": "11.1.1",
+    "jsondiffpatch": "0.7.7",
+    "mathjs": "15.2.0"
   }
 }
