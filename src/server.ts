@@ -160,18 +160,17 @@ try {
 	);
 }
 
-// Rule 1 (H-9): prime the ECB reference rates so cross-currency limit checks can
-// convert; USD actions never need it. Failure is non-fatal — non-USD actions then
-// fail closed until the next successful prime.
-try {
-	const fx = await primeFxRates();
-	logLine(`[server] ECB FX primed: ${fx}`);
-} catch (e) {
-	logError(
-		"[server] ECB FX prime failed (non-USD actions stay blocked fail-closed):",
-		e,
+// Rule 1 (H-9): prime the ECB rates in the BACKGROUND — an external HTTP must
+// never delay `listen` (the cold-start smoke probe budget is seconds). USD actions
+// never need it; until the prime lands, non-USD actions fail closed (logged per call).
+void primeFxRates()
+	.then((fx) => logLine(`[server] ECB FX primed: ${fx}`))
+	.catch((e: unknown) =>
+		logError(
+			"[server] ECB FX prime failed (non-USD actions stay blocked fail-closed):",
+			e,
+		),
 	);
-}
 
 const server = createServer((req, res) => {
 	const url = req.url ?? "/";
