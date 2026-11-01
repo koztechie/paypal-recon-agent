@@ -165,7 +165,15 @@ function guardAgentTool(
 			refusal: "BLOCKED: unparseable amount for a money action (fail-closed)",
 		};
 	}
-	const decision = enforceActionPolicy(toolName, minor, { targetRef: ref });
+	const decision = enforceActionPolicy(toolName, minor, {
+		targetRef: ref,
+		currency:
+			typeof args.currency_code === "string"
+				? args.currency_code
+				: typeof args.currency === "string"
+					? args.currency
+					: "USD",
+	});
 	return decision.allowed
 		? { refusal: null, logId: decision.logId }
 		: { refusal: decision.reason };

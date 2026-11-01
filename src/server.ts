@@ -20,6 +20,7 @@ import {
 	insertWebhookEvent,
 } from "./db.ts";
 import { explainLedgerRow } from "./explain.ts";
+import { primeFxRates } from "./fx.ts";
 import { logError, logLine } from "./log.ts";
 import { negotiate } from "./negotiation.ts";
 import { parseLedgerQuery } from "./nl.ts";
@@ -155,6 +156,19 @@ try {
 } catch (e) {
 	logError(
 		"[server] book snapshot restore failed (continuing with an empty book):",
+		e,
+	);
+}
+
+// Rule 1 (H-9): prime the ECB reference rates so cross-currency limit checks can
+// convert; USD actions never need it. Failure is non-fatal — non-USD actions then
+// fail closed until the next successful prime.
+try {
+	const fx = await primeFxRates();
+	logLine(`[server] ECB FX primed: ${fx}`);
+} catch (e) {
+	logError(
+		"[server] ECB FX prime failed (non-USD actions stay blocked fail-closed):",
 		e,
 	);
 }

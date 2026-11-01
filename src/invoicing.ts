@@ -37,6 +37,7 @@ export async function createDraftInvoice(
 	const amountMinor = Math.round(parseFloat(input.amount) * 100);
 	const gate = enforceActionPolicy("create_invoice", amountMinor, {
 		targetRef: input.itemName,
+		currency: input.currency ?? "USD",
 	});
 
 	// H-7: enforceActionPolicy already logged THIS decision — no second row.
@@ -175,6 +176,7 @@ export async function recordExternalPayment(
 		recAmountMinor,
 		{
 			targetRef: invoiceId,
+			currency,
 		},
 	);
 	if (!recGate.allowed) {

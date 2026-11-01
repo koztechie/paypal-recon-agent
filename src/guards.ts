@@ -7,6 +7,7 @@
  *    ("LLM/system decision log" requirement of stage 19/68).
  */
 import { logAgentAction } from "./auditlog.ts";
+import { usdMinorFrom } from "./fx.ts";
 
 export const AGENT_AUTO_LIMIT_MINOR = 500_00; // $500.00 in cents
 
@@ -34,12 +35,29 @@ export function enforceActionPolicy(
 		llmDecision?: string;
 		targetRef?: string;
 		autoLimitMinor?: number;
+		currency?: string; // Rule-1 conversion source (H-9); default USD
 	} = {},
 ): PolicyDecision {
 	const limit =
 		opts.llmDecision === undefined && opts.autoLimitMinor === undefined
 			? AGENT_AUTO_LIMIT_MINOR
 			: (opts.autoLimitMinor ?? AGENT_AUTO_LIMIT_MINOR);
+
+	// H-9 / Rule 1: compare USD EQUIVALENTS (ECB reference rate of the day).
+	// Conversion failure (not primed / unknown currency / ECB outage) -> BLOCK.
+	const currency = opts.currency ?? "USD";
+	const converted = usdMinorFrom(amountMinor, currency);
+	if (converted === null) {
+		return {
+			allowed: false,
+			limitCheck: "BLOCKED",
+			reason: `FX rate (ECB) unavailable for ${currency} — blocked fail-closed (Rule 1)`,
+		};
+	}
+	const show = (minor: number) =>
+		currency === "USD"
+			? `$${(minor / 100).toFixed(2)}`
+			: `${(amountMinor / 100).toFixed(2)} ${currency} (≈ $${(converted / 100).toFixed(2)})`;
 
 	let decision: PolicyDecision;
 	if (RED_LIST_ACTIONS.has(action)) {
@@ -48,17 +66,17 @@ export function enforceActionPolicy(
 			limitCheck: "BLOCKED",
 			reason: `human-only action "${action}" is on the red list (SECURITY rule 2)`,
 		};
-	} else if (amountMinor > limit) {
+	} else if (converted > limit) {
 		decision = {
 			allowed: false,
 			limitCheck: "BLOCKED",
-			reason: `amount ${(amountMinor / 100).toFixed(2)} exceeds agent auto-limit ${(limit / 100).toFixed(2)} — human approval required (SECURITY rule 1)`,
+			reason: `amount ${show(amountMinor)} exceeds agent auto-limit ${(limit / 100).toFixed(2)} — human approval required (SECURITY rule 1)`,
 		};
 	} else {
 		decision = {
 			allowed: true,
 			limitCheck: "PASS",
-			reason: `amount ${(amountMinor / 100).toFixed(2)} within auto-limit ${(limit / 100).toFixed(2)}`,
+			reason: `amount ${show(amountMinor)} within auto-limit ${(limit / 100).toFixed(2)}`,
 		};
 	}
 

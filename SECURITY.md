@@ -15,7 +15,7 @@ These five rules are **hard constraints**. Any code path that violates them must
   - invoice total ≤ **$500 USD equivalent** (50,000 minor units), and
   - the action is on the allowlist (stage 19, actions 3 and 5).
 - Anything above the limit → `limit_check = BLOCKED`, status `REVIEW`, queue for a human.
-- The limit is a single constant: `AGENT_AUTO_LIMIT_MINOR = 50000` (currency-converted at the ECB reference rate of the day; conversion failure → block).
+- The limit is a single constant: `AGENT_AUTO_LIMIT_MINOR = 50000` — compared against the **USD equivalent** via `src/fx.ts` (ECB daily reference rates,24h per-process cache, USD identity fast path with zero network calls; conversion failure → **block**, fail-closed). Verified live: €500 ≈ $558.60 → BLOCKED, $499.99 → PASS.
 
 ## Rule 2 — Human approval for large or irreversible actions
 
@@ -95,11 +95,11 @@ and only `verification_status: SUCCESS` may reach the books (security finding
 
 | Rule | Enforced at | Verified by |
 |---|---|---|
-| 1 | `src/limits.ts` + pre-execution check | stage 68 test: attempt > limit → BLOCKED |
+| 1 | `src/guards.ts` `enforceActionPolicy` + ECB conversion in `src/fx.ts` (H-9) | stage 68 test: attempt > limit → BLOCKED; `tests/fx.test.ts` pins €500 → ≈$558.60 → BLOCKED |
 | 2 | Toolkit whitelist (`actions` config, ADR-004) + code guard | stage 69: 3 prompt attacks rejected |
 | 3 | `agent_actions` insert-before-execute | stage 54: 24h of logs, no gaps |
-| 4 | rate limiter in `src/ratelimit.ts` | stage 64: 10 repeats → identical outcome |
-| 5 | `.env.example` + CI grep + input sanitation | stage 121: 0 key hits |
+| 4 | rate limiter in `src/reminder-ledger.ts` (atomic DB reserve, H-8) | stage 64: 8/8 + concurrent double-send = one call (suite71/71) |
+| 5 | `.env.example` + **CI secrets step** (`.github/workflows/ci.yml`, H-9) + input sanitation | stage 121: 0 key hits; CI runs the tracked-file grep on every push/PR |
 | 6 | webhook signature verification (`src/webhook-verify.ts`) | live: forged POST → 401, rows unchanged (188→188) |
 | 1–3 | agent loop choke point (`src/agent.ts` `guardAgentTool`, finding H-1) | stage73 real DRAFT→SENT 5/5; blocked paths unit-tested (40/40) |
 
