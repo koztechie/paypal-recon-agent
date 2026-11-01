@@ -3,6 +3,7 @@
  * All calls go through the guardrail whitelist in src/paypal.ts.
  */
 import { logAgentAction, markAgentActionExecutedById } from "./auditlog.ts";
+import { dollarsToMinor } from "./db.ts";
 import { enforceActionPolicy } from "./guards.ts";
 import type { ToolkitTools } from "./paypal.ts";
 
@@ -34,7 +35,8 @@ export async function createDraftInvoice(
 	).execute;
 
 	// Guard (stage 68): agent-created invoices must respect the auto-limit ($500).
-	const amountMinor = Math.round(parseFloat(input.amount) * 100);
+	// M-1: validated integer minor units — garbage throws BEFORE the policy.
+	const amountMinor = dollarsToMinor(input.amount);
 	const gate = enforceActionPolicy("create_invoice", amountMinor, {
 		targetRef: input.itemName,
 		currency: input.currency ?? "USD",
@@ -170,7 +172,8 @@ export async function recordExternalPayment(
 		}
 	).execute;
 	// Guard (stage 68): recorded external payments must respect the auto-limit.
-	const recAmountMinor = Math.round(parseFloat(amount) * 100);
+	// M-1: validated integer minor units — garbage throws BEFORE the policy.
+	const recAmountMinor = dollarsToMinor(amount);
 	const recGate = enforceActionPolicy(
 		"record_payment_for_invoice",
 		recAmountMinor,

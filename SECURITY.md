@@ -15,6 +15,7 @@ These five rules are **hard constraints**. Any code path that violates them must
   - invoice total ≤ **$500 USD equivalent** (50,000 minor units), and
   - the action is on the allowlist (stage 19, actions 3 and 5).
 - Anything above the limit → `limit_check = BLOCKED`, status `REVIEW`, queue for a human.
+- Money enters the ledger only as **validated integer minor units** (`dollarsToMinor`, M-1): strict decimal grammar + safe-integer check — malformed/`NaN`/negative/unsafe values throw BEFORE any policy decision or DB write (live: `invalid money value: "abc"`, row not stored).
 - The limit is a single constant: `AGENT_AUTO_LIMIT_MINOR = 50000` — compared against the **USD equivalent** via `src/fx.ts` (ECB daily reference rates,24h per-process cache, USD identity fast path with zero network calls; conversion failure → **block**, fail-closed). Verified live: €500 ≈ $558.60 → BLOCKED, $499.99 → PASS.
 
 ## Rule 2 — Human approval for large or irreversible actions

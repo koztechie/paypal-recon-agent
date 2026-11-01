@@ -6,7 +6,7 @@
  * ai_explanation is rule-based for now; LLM explanation arrives at stages 59-65.
  */
 import type { DatabaseSync } from "node:sqlite";
-import { normalizeInvoiceStatus } from "./db.ts";
+import { dollarsToMinor, normalizeInvoiceStatus } from "./db.ts";
 import type { ToolkitTools } from "./paypal.ts";
 import { listAllInvoices as fetchAllInvoiceItems } from "./paypal.ts";
 
@@ -53,25 +53,33 @@ async function listInvoicesLite(tools: ToolkitTools): Promise<InvoiceLite[]> {
 	// H-3: fetch EVERY page (the old helper only read page1 of20 despite
 	// total_required — invoices beyond it produced false UNMATCHED).
 	const all = await fetchAllInvoiceItems(tools);
-	return all.map((i) => {
-		const detail = (i.detail ?? {}) as Record<string, unknown>;
-		const amount = (i.amount ?? {}) as {
-			value?: string;
-			currency_code?: string;
-		};
-		return {
-			id: String(i.id),
-			invoice_number: detail.invoice_number
-				? String(detail.invoice_number)
-				: undefined,
-			currency: amount.currency_code,
-			total_minor: amount.value
-				? Math.round(parseFloat(amount.value) * 100)
-				: undefined,
-			status: i.status ? String(i.status) : undefined,
-			issued_at: detail.invoice_date ? String(detail.invoice_date) : undefined,
-		};
-	});
+	return all
+		.map((i): InvoiceLite | null => {
+			const detail = (i.detail ?? {}) as Record<string, unknown>;
+			const amount = (i.amount ?? {}) as {
+				value?: string;
+				currency_code?: string;
+			};
+			try {
+				return {
+					id: String(i.id),
+					invoice_number: detail.invoice_number
+						? String(detail.invoice_number)
+						: undefined,
+					currency: amount.currency_code,
+					total_minor: amount.value ? dollarsToMinor(amount.value) : undefined,
+					status: i.status ? String(i.status) : undefined,
+					issued_at: detail.invoice_date
+						? String(detail.invoice_date)
+						: undefined,
+				};
+			} catch {
+				// M-1: an unparseable invoice total can never be matched (NaN !== NaN
+				// produced false UNMATCHED before) — exclude the invoice entirely.
+				return null;
+			}
+		})
+		.filter((row): row is InvoiceLite => row !== null);
 }
 
 export async function reconcilePayment(

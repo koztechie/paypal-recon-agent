@@ -187,9 +187,28 @@ export function insertWebhookEvent(
 	}
 }
 
-function dollarsToMinor(value: string | undefined): number {
-	if (!value) return 0;
-	return Math.round(parseFloat(value) * 100);
+/**
+ * M-1: money enters the ledger as VALIDATED integer minor units — a plain decimal
+ * string/number of DOLLARS; missing stays0 (documented for optional fee/net
+ * columns). Malformed ("abc", "1e3", "0x10"), negative, NaN or unsafe-after-x100
+ * values THROW instead of letting NaN reach a NOT NULL/CHECK column or silently
+ * pass a policy comparison (NaN > limit is false).
+ */
+const MONEY_DECIMAL = /^\d+(\.\d+)?$/;
+export function dollarsToMinor(value: string | number | undefined): number {
+	if (value === undefined || value === null) return 0;
+	const text = typeof value === "number" ? String(value) : value.trim();
+	if (text === "") return 0;
+	if (!MONEY_DECIMAL.test(text)) {
+		throw new TypeError(`invalid money value: ${JSON.stringify(value)}`);
+	}
+	const minor = Math.round(Number(text) * 100);
+	if (!Number.isSafeInteger(minor)) {
+		throw new TypeError(
+			`invalid money value (out of safe range): ${JSON.stringify(value)}`,
+		);
+	}
+	return minor;
 }
 
 /** Extract a payments row from INVOICING.INVOICE.PAID events (invoice payments). */
