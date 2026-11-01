@@ -75,14 +75,17 @@ test("SUCCESS: valid signature -> ok, correct verify payload, Basic auth on the 
 		unknown
 	>;
 	assert.equal(payload.webhook_id, "WEBHOOK-ID-1");
-	assert.equal(payload.event_type, "INVOICING.INVOICE.PAID");
-	assert.equal(payload.sig, HEADERS["paypal-transmission-sig"]);
 	assert.equal(payload.auth_algo, HEADERS["paypal-auth-algo"]);
 	assert.equal(payload.cert_url, HEADERS["paypal-cert-url"]);
-	assert.ok(
-		Array.isArray(payload.headers) &&
-			(payload.headers as unknown[]).length === 5,
+	assert.equal(payload.transmission_id, HEADERS["paypal-transmission-id"]);
+	assert.equal(payload.transmission_sig, HEADERS["paypal-transmission-sig"]);
+	assert.equal(payload.transmission_time, HEADERS["paypal-transmission-time"]);
+	assert.deepEqual(
+		payload.webhook_event,
+		BODY,
+		"event passed through unchanged",
 	);
+	assert.ok(!("headers" in payload), "legacy headers[] shape is gone");
 });
 
 test("FAILURE status from PayPal -> not ok", async () => {
@@ -126,7 +129,7 @@ test("transport error -> not ok (fail-closed; PayPal retries non-2xx)", async ()
 	assert.deepEqual(out, { ok: false, reason: "transport-error" });
 });
 
-test("missing event_type still verifies with empty string (no throw)", async () => {
+test("missing body still verifies with an empty event object (no throw)", async () => {
 	const { impl, calls } = makeFetch({ verification_status: "SUCCESS" });
 	const out = await verifyPaypalWebhook(HEADERS, {}, "WEBHOOK-ID-1", {
 		fetchImpl: impl,
@@ -137,5 +140,9 @@ test("missing event_type still verifies with empty string (no throw)", async () 
 			calls.find((c) => c.url.includes("verify-webhook-signature"))?.init.body,
 		),
 	) as Record<string, unknown>;
-	assert.equal(payload.event_type, "");
+	assert.deepEqual(
+		payload.webhook_event,
+		{},
+		"empty body -> empty event object",
+	);
 });

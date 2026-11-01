@@ -97,14 +97,18 @@ export async function verifyPaypalWebhook(
 	if (collected.some((h) => !h.value))
 		return { ok: false, reason: "missing-headers" };
 
-	const eventType = (body as { event_type?: unknown } | null)?.event_type;
+	// Current endpoint contract (PayPal's 2023 update; verified empirically 2026-11-01):
+	// FLAT transmission_* fields + the raw event object — the legacy {headers[], sig}
+	// shape is rejected with 400 /headers (that bug blocked REAL events; caught by the
+	// signed-cycle test, fixed the same day).
 	const payload = {
 		auth_algo: header("paypal-auth-algo"),
 		cert_url: header("paypal-cert-url"),
-		headers: collected,
-		sig: header("paypal-transmission-sig"),
+		transmission_id: header("paypal-transmission-id"),
+		transmission_sig: header("paypal-transmission-sig"),
+		transmission_time: header("paypal-transmission-time"),
 		webhook_id: webhookId,
-		event_type: typeof eventType === "string" ? eventType : "",
+		webhook_event: (body ?? {}) as Record<string, unknown>,
 	};
 
 	try {
