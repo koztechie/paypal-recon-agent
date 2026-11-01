@@ -93,4 +93,16 @@ tests `tests/api-auth.test.ts`): with the token set, requests must carry
 call (deploy-safe default, same pattern as Rule 6). The hosted keyless demo surfaces
 stay public on purpose — an explicit hackathon requirement (R6): `/`, `/health`,
 `/api/app-config`, `/api/recon/rows`, `/api/nl-filter`, `/api/explain`.
+## Rule 8 — Minimize public data; allowlist CORS
+
+`/api/recon/rows` is the product's public sandbox ledger (an explicit demo
+surface), but it ships **minimized** data (security finding **C-3**, fixed
+2026-11-01): EVENT rows never include the raw webhook payload (buyer emails live
+there — the column was removed from the response), emails in payment notes and in
+`/api/explain` output are masked to `ab…@domain` (`src/public-rows.ts`).
+CORS is an explicit allowlist (`src/cors.ts`): the service's own origin plus the
+local UI origins out of the box, `CORS_ORIGINS` for anything else — a foreign
+origin receives **no** `Access-Control-Allow-Origin` header, so browsers cannot
+read responses cross-origin and preflights fail (mutations additionally require
+the Rule-7 token). Verified live: evil origin → no header; localhost:3001 → echoed.
 *If a rule and a feature conflict, the rule wins. Report the conflict in `DECISIONS.md` as a new ADR.*

@@ -11,6 +11,7 @@ import {
 } from "node:http";
 import { checkActionAuth } from "./api-auth.ts";
 import { buildContract } from "./contract.ts";
+import { corsHeadersFor } from "./cors.ts";
 import {
 	getDb,
 	insertPaymentFromEvent,
@@ -22,6 +23,7 @@ import { logError, logLine } from "./log.ts";
 import { negotiate } from "./negotiation.ts";
 import { parseLedgerQuery } from "./nl.ts";
 import { createPaypalToolkit } from "./paypal.ts";
+import { maskEmails } from "./public-rows.ts";
 import { reconcilePending } from "./reconcile.ts";
 import {
 	markRowMatched,
@@ -126,6 +128,13 @@ function guardAction(
 	);
 	return false;
 }
+
+const ALLOWED_ORIGINS = (
+	process.env.CORS_ORIGINS ?? "http://localhost:3001,http://127.0.0.1:3001"
+)
+	.split(",")
+	.map((o) => o.trim())
+	.filter(Boolean);
 
 const server = createServer((req, res) => {
 	const url = req.url ?? "/";
@@ -294,7 +303,11 @@ const server = createServer((req, res) => {
 				}
 				res.writeHead(200, {
 					"Content-Type": "application/json",
-					"Access-Control-Allow-Origin": "*",
+					...(corsHeadersFor(
+						req.headers.origin,
+						req.headers.host ?? "",
+						ALLOWED_ORIGINS,
+					) ?? {}),
 				});
 				res.end(JSON.stringify({ rows, bench: n }));
 				return;
@@ -308,7 +321,11 @@ const server = createServer((req, res) => {
 					c("SELECT COUNT(*) c FROM webhook_events");
 				res.writeHead(200, {
 					"Content-Type": "application/json",
-					"Access-Control-Allow-Origin": "*",
+					...(corsHeadersFor(
+						req.headers.origin,
+						req.headers.host ?? "",
+						ALLOWED_ORIGINS,
+					) ?? {}),
 				});
 				res.end(JSON.stringify({ count }));
 				return;
@@ -335,7 +352,7 @@ const server = createServer((req, res) => {
 						p.variance != null ? (Number(p.variance) / 100).toFixed(2) : "",
 					currency: p.currency,
 					at: p.at,
-					note: typeof p.note === "string" ? p.note : "",
+					note: typeof p.note === "string" ? maskEmails(p.note) : "",
 				});
 			}
 			const inv = getDb()
@@ -377,12 +394,16 @@ const server = createServer((req, res) => {
 					currency: "USD",
 					at: e.at,
 					note: e.ref,
-					payload: typeof e.payload === "string" ? e.payload : "",
+					// C-3: raw payload dropped — it carries buyer PII (emails, amounts).
 				});
 			}
 			res.writeHead(200, {
 				"Content-Type": "application/json",
-				"Access-Control-Allow-Origin": "*",
+				...(corsHeadersFor(
+					req.headers.origin,
+					req.headers.host ?? "",
+					ALLOWED_ORIGINS,
+				) ?? {}),
 			});
 			res.end(JSON.stringify({ rows }));
 			return;
@@ -402,7 +423,12 @@ const server = createServer((req, res) => {
 			if (raw.length > 10_000) req.destroy();
 		});
 		req.on("end", async () => {
-			const cors = { "Access-Control-Allow-Origin": "*" };
+			const cors =
+				corsHeadersFor(
+					req.headers.origin,
+					req.headers.host ?? "",
+					ALLOWED_ORIGINS,
+				) ?? {};
 			try {
 				const body = JSON.parse(raw || "{}") as { query?: unknown };
 				const query = typeof body.query === "string" ? body.query.trim() : "";
@@ -433,7 +459,12 @@ const server = createServer((req, res) => {
 			if (raw.length > 10_000) req.destroy();
 		});
 		req.on("end", async () => {
-			const cors = { "Access-Control-Allow-Origin": "*" };
+			const cors =
+				corsHeadersFor(
+					req.headers.origin,
+					req.headers.host ?? "",
+					ALLOWED_ORIGINS,
+				) ?? {};
 			try {
 				const body = JSON.parse(raw || "{}") as {
 					kind?: unknown;
@@ -461,7 +492,15 @@ const server = createServer((req, res) => {
 					return;
 				}
 				res.writeHead(200, { "Content-Type": "application/json", ...cors });
-				res.end(JSON.stringify({ ok: true, ...result }));
+				res.end(
+					JSON.stringify({
+						ok: true,
+						...result,
+						...(typeof result.explanation === "string"
+							? { explanation: maskEmails(result.explanation) }
+							: {}),
+					}),
+				);
 			} catch (e) {
 				res.writeHead(500, { "Content-Type": "application/json", ...cors });
 				res.end(JSON.stringify({ ok: false, error: String(e) }));
@@ -479,7 +518,12 @@ const server = createServer((req, res) => {
 			if (raw.length > 10_000) req.destroy();
 		});
 		req.on("end", async () => {
-			const cors = { "Access-Control-Allow-Origin": "*" };
+			const cors =
+				corsHeadersFor(
+					req.headers.origin,
+					req.headers.host ?? "",
+					ALLOWED_ORIGINS,
+				) ?? {};
 			try {
 				const body = JSON.parse(raw || "{}") as {
 					action?: unknown;
@@ -544,7 +588,12 @@ const server = createServer((req, res) => {
 	// the negotiation window reveals it).
 	if (req.method === "POST" && url.split("?")[0] === "/api/negotiate") {
 		if (!guardAction(req, res, "/api/negotiate")) return;
-		const cors = { "Access-Control-Allow-Origin": "*" };
+		const cors =
+			corsHeadersFor(
+				req.headers.origin,
+				req.headers.host ?? "",
+				ALLOWED_ORIGINS,
+			) ?? {};
 		let raw = "";
 		req.on("data", (chunk: Buffer) => {
 			raw += chunk.toString("utf8");
@@ -635,7 +684,11 @@ const server = createServer((req, res) => {
 			};
 			res.writeHead(200, {
 				"Content-Type": "application/json",
-				"Access-Control-Allow-Origin": "*",
+				...(corsHeadersFor(
+					req.headers.origin,
+					req.headers.host ?? "",
+					ALLOWED_ORIGINS,
+				) ?? {}),
 			});
 			res.end(
 				JSON.stringify({
@@ -668,7 +721,11 @@ const server = createServer((req, res) => {
 	if (req.method === "GET" && url.split("?")[0] === "/api/app-config") {
 		res.writeHead(200, {
 			"Content-Type": "application/json",
-			"Access-Control-Allow-Origin": "*",
+			...(corsHeadersFor(
+				req.headers.origin,
+				req.headers.host ?? "",
+				ALLOWED_ORIGINS,
+			) ?? {}),
 		});
 		res.end(
 			JSON.stringify({
@@ -698,7 +755,12 @@ const server = createServer((req, res) => {
 	// This is how "звірити" runs on the public URL of the production service.
 	if (req.method === "POST" && url.split("?")[0] === "/api/recon/run") {
 		if (!guardAction(req, res, "/api/recon/run")) return;
-		const cors = { "Access-Control-Allow-Origin": "*" };
+		const cors =
+			corsHeadersFor(
+				req.headers.origin,
+				req.headers.host ?? "",
+				ALLOWED_ORIGINS,
+			) ?? {};
 		req.on("data", () => undefined);
 		req.on("end", async () => {
 			try {
