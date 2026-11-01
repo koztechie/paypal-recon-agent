@@ -105,4 +105,14 @@ local UI origins out of the box, `CORS_ORIGINS` for anything else — a foreign
 origin receives **no** `Access-Control-Allow-Origin` header, so browsers cannot
 read responses cross-origin and preflights fail (mutations additionally require
 the Rule-7 token). Verified live: evil origin → no header; localhost:3001 → echoed.
+## Rule 9 — Dependency supply chain
+
+Both lockfiles are kept advisory-clean by **measured upgrades** (finding **C-4**
+fixed 2026-11-01): `npm audit` before/after recorded in
+`evidence/2026-11-01-security-c4-dependencies.md`; root audit is **0 vulnerabilities**
+(was12) and web has **0 critical/high** (was20) — Next.js is on16.4.3 (patched
+SSG/ISR cache-poisoning, image-optimization SSRF and Draft-Mode GHSA cluster).
+Policy: never `audit fix --force`; every override or major bump is kept only after
+the real probe battery stays green (tsc, unit tests, dry-run E2E, live LLM probe,
+live PayPal SDK call); residuals are registered with reachability reasoning.
 *If a rule and a feature conflict, the rule wins. Report the conflict in `DECISIONS.md` as a new ADR.*
