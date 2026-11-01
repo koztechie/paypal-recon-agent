@@ -222,7 +222,9 @@ export async function recordExternalPayment(
 		},
 	);
 	if (!recGate.allowed) {
-		markAgentActionExecuted("record_payment_for_invoice", invoiceId);
+		// H-6: do NOT mark anything executed — the BLOCKED decision logged by
+		// enforceActionPolicy stays executed=0 (executed=1 means "the tool really
+		// ran"; flipping a blocked row falsifies the audit log, Rule 3).
 		throw new Error(`BLOCKED by guard: ${recGate.reason}`);
 	}
 	logAgentAction({
