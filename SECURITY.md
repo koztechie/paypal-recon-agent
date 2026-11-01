@@ -55,6 +55,22 @@ Approval flow: action requested → stored with `executed = 0` → human flips t
 
 ---
 
+## Rule 6 — Verify webhook signatures
+
+Every delivery at `POST /webhook` is checked with PayPal's
+`/v1/notifications/verify-webhook-signature` **before** the event is trusted:
+the five `PAYPAL-*` headers + `event_type` are sent (OAuth client-credentials)
+and only `verification_status: SUCCESS` may reach the books (security finding
+**C-1**, fixed 2026-11-01; module `src/webhook-verify.ts`, tests `tests/webhook-verify.test.ts`).
+
+- **Enforcement = `WEBHOOK_ID`** (the webhook id from the PayPal dashboard):
+  set → **strict, fail-closed** — missing/forged headers, non-200 or a timeout
+  ⇒ `401` and the event is NOT stored (PayPal retries non-2xx, so transient
+  failures self-heal). Unset → the event is accepted **with a loud warning**
+  in the log (deploy-safe default; never silently).
+- Production: `WEBHOOK_ID=83733119MV984010C`; local dev: `2VN59522XH443900A` (ngrok).
+- Live proofs: forged POST → `401` + `REJECTED (missing-headers)`, forged-but-well-formed
+  headers → real verify call → `401` + `REJECTED (failure-status)`, ledger rows unchanged.
 ## Enforcement map
 
 | Rule | Enforced at | Verified by |
@@ -64,5 +80,6 @@ Approval flow: action requested → stored with `executed = 0` → human flips t
 | 3 | `agent_actions` insert-before-execute | stage 54: 24h of logs, no gaps |
 | 4 | rate limiter in `src/ratelimit.ts` | stage 64: 10 repeats → identical outcome |
 | 5 | `.env.example` + CI grep + input sanitation | stage 121: 0 key hits |
+| 6 | webhook signature verification (`src/webhook-verify.ts`) | live: forged POST → 401, rows unchanged (188→188) |
 
 *If a rule and a feature conflict, the rule wins. Report the conflict in `DECISIONS.md` as a new ADR.*

@@ -23,6 +23,7 @@ import {
 	type RowActionResult,
 	sendRowReminder,
 } from "./row-actions.ts";
+import { verifyPaypalWebhook } from "./webhook-verify.ts";
 
 mkdirSync("logs", { recursive: true });
 
@@ -129,9 +130,39 @@ const server = createServer((req, res) => {
 			raw += chunk.toString("utf8");
 			if (raw.length > 1_000_000) req.destroy(); // payload guard
 		});
-		req.on("end", () => {
+		req.on("end", async () => {
 			try {
 				const parsed = JSON.parse(raw) as { id?: string; event_type?: string };
+				// Security C-1 (fixed 2026-11-01): verify the delivery signature BEFORE
+				// trusting the event. Enforcement = WEBHOOK_ID (from the PayPal dashboard):
+				// set -> STRICT (fail-closed: bad/missing headers, non-200 or timeout -> 401;
+				// PayPal retries non-2xx, so transient failures self-heal); unset -> accept
+				// with a LOUD warning (never silently).
+				const webhookId = process.env.WEBHOOK_ID;
+				if (webhookId) {
+					const outcome = await verifyPaypalWebhook(
+						req.headers,
+						parsed,
+						webhookId,
+					);
+					if (!outcome.ok) {
+						logError(
+							`[webhook] REJECTED (${outcome.reason}): ${parsed.event_type ?? "unknown"} (${parsed.id ?? "no-id"})`,
+						);
+						res.writeHead(401, { "Content-Type": "application/json" });
+						res.end(
+							JSON.stringify({ received: false, reason: outcome.reason }),
+						);
+						return;
+					}
+					logLine(
+						`[webhook] signature verified: ${parsed.event_type ?? "unknown"} (${parsed.id ?? "no-id"})`,
+					);
+				} else {
+					logLine(
+						"[webhook] WARNING: WEBHOOK_ID is not configured — event accepted WITHOUT signature verification (set WEBHOOK_ID to enforce, security C-1)",
+					);
+				}
 				appendFileSync(
 					"logs/webhooks.ndjson",
 					`${JSON.stringify({ received_at: new Date().toISOString(), ...parsed, raw_len: raw.length })}\n`,
