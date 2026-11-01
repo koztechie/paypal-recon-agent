@@ -136,6 +136,9 @@ SSG/ISR cache-poisoning, image-optimization SSRF and Draft-Mode GHSA cluster).
 Policy: never `audit fix --force`; every override or major bump is kept only after
 the real probe battery stays green (tsc, unit tests, dry-run E2E, live LLM probe,
 live PayPal SDK call); residuals are registered with reachability reasoning.
+**CI enforces it** (H-10): `npm audit --audit-level=high` on BOTH lockfiles, the Next
+app is linted (`eslint`) and compiled (`next build`) in CI, plus the tracked-file
+secrets scan — a new critical/high advisory or a web build break fails the pipeline.
 ## Rule 10 — Bound optional AI proxies
 
 The AG Studio assistant proxy (`web/app/api/ai/responses`, security finding **C-5**
