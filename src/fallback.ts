@@ -12,6 +12,7 @@ import type {
 	ReminderInput,
 } from "./actions.ts";
 import { logAgentAction } from "./auditlog.ts";
+import { logLine } from "./log.ts";
 
 const OPEN_STATUSES = new Set(["SENT", "PARTIALLY_PAID"]);
 
@@ -143,7 +144,7 @@ export async function withFallback<T>(
 		return { value: await llmFn(), via: "llm" };
 	} catch (e) {
 		const error = e instanceof Error ? e.message.slice(0, 200) : String(e);
-		console.warn(
+		logLine(
 			`[fallback] ${label}: LLM unavailable -> rules (${error.slice(0, 90)})`,
 		);
 		logAgentAction({

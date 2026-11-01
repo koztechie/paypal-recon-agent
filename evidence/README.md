@@ -2,10 +2,10 @@
 
 Everything a judge may want to verify links back to a file in this directory:
 per-stage reports (markers + raw results), screenshots, video artifacts, QA JSON
-and the rerunnable montage script. **145 files, ~28 MB.**
+and the rerunnable montage script. **150 files, ~28 MB.**
 
-**Transparency guarantees (re-checked for this index):**
-- **Secrets: 0 matches** — scanned all md/json/py/srt files for token/key
+**Transparency guarantees (re-checked at each regeneration):**
+- **Secrets: 0 matches** — all md/json/py/srt files scanned for token/key
   patterns (GitHub PATs, `sk-`/`AIza` keys, `Bearer` values, filled env secrets).
 - Screenshots and video are the *published* artifacts (the video was even re-audited
   from YouTube's own bytes — see stage 135).
@@ -35,7 +35,11 @@ and the rerunnable montage script. **145 files, ~28 MB.**
 | `subs/2026-10-30-stage132-demo-final-en.srt` | Standalone subtitles (also burned in) |
 | `2026-10-31-vid2-raw/` | Committed raw screen recordings (montage rerunnability): `2026-10-31-vid2-raw/negotiation.webm`, `2026-10-31-vid2-raw/ai-panel.webm`, `2026-10-31-vid2-raw/hosted.webm`, `2026-10-31-vid2-raw/filters.webm`, `2026-10-31-vid2-raw/outro.webm`, `2026-10-31-vid2-raw/clip1-raw.webm`, `2026-10-31-vid2-raw/clip2-raw.webm` |
 
-## Stage reports (97 files, chronological per stage)
+## QA scenario artifacts (stage 144)
+`2026-10-31-stage144-grid-scenario.json` + `2026-10-31-stage144-1-nl-unmatched.png`,
+`2026-10-31-stage144-2-nl-review.png`, `2026-10-31-stage144-3-mark-matched.png`.
+
+## Stage reports (99 files, chronological per stage)
 | Stage | Report | Title |
 |---|---|---|
 | 25 | [2026-10-27-stage25-26-sandbox.md](2026-10-27-stage25-26-sandbox.md) | Evidence — stages 25–26 (PayPal sandbox credentials + token test) |
@@ -135,7 +139,9 @@ and the rerunnable montage script. **145 files, ~28 MB.**
 | 140 | [2026-10-31-stage140-how-ai.md](2026-10-31-stage140-how-ai.md) | Evidence — stage 140: README section «How AI is used» (R7) |
 | 141 | [2026-10-31-stage141-paypal-apis.md](2026-10-31-stage141-paypal-apis.md) | Evidence — stage 141: README section «PayPal APIs used» |
 | 142 | [2026-10-31-stage142-license-about.md](2026-10-31-stage142-license-about.md) | Evidence — stage 142: LICENSE in root + repo About section |
+| 143 | [2026-10-31-stage143-evidence-index.md](2026-10-31-stage143-evidence-index.md) | Evidence — stage 143: evidence/ for transparency |
+| 144 | [2026-10-31-stage144-qa-final.md](2026-10-31-stage144-qa-final.md) | Evidence — stage 144: final QA run — 5/5 scenarios DONE |
 
 ---
-*Generated 2026-10-31 during stage143 (evidence transparency). Keep this index
-updated when adding new reports.*
+*Generated 2026-10-31 during stage 143; regenerated 2026-11-01 during stage 145
+(cleanup pass: +reports 143–144, duplicate screenshot removed, secret-scan re-run).*

@@ -8,6 +8,7 @@
  */
 import { PayPalAgentToolkit } from "@paypal/agent-toolkit/ai-sdk";
 import { isDryRun, withDryRun } from "./dryrun.ts";
+import { logLine } from "./log.ts";
 
 export function createPaypalToolkit(): PayPalAgentToolkit {
 	const clientId = process.env.PAYPAL_CLIENT_ID;
@@ -19,7 +20,7 @@ export function createPaypalToolkit(): PayPalAgentToolkit {
 		}
 		// Stage 123: keyless fresh-machine demo — money actions are stubbed by
 		// withDryRun anyway, so placeholder credentials can never leave the process.
-		console.log(
+		logLine(
 			"[dry-run] PayPal credentials absent — placeholder mode, no real calls",
 		);
 	}

@@ -3,6 +3,7 @@
  * agent_actions BEFORE/independent of execution; blocked attempts are logged too.
  */
 import { getDb } from "./db.ts";
+import { logError } from "./log.ts";
 
 export interface AgentActionEntry {
 	action: string;
@@ -28,7 +29,7 @@ export function logAgentAction(entry: AgentActionEntry): void {
 				entry.executed ? new Date().toISOString() : null,
 			);
 	} catch (e) {
-		console.error("[agent-actions] log failed:", e);
+		logError("[agent-actions] log failed:", e);
 	}
 }
 
@@ -49,6 +50,6 @@ export function markAgentActionExecuted(
 			)
 			.run(action, targetRef ?? null, targetRef ?? null);
 	} catch (e) {
-		console.error("[agent-actions] mark failed:", e);
+		logError("[agent-actions] mark failed:", e);
 	}
 }

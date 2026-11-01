@@ -5,6 +5,7 @@
  * perspective).
  */
 import { logAgentAction } from "./auditlog.ts";
+import { logLine } from "./log.ts";
 
 export type ErrorKind = "transient" | "validation" | "auth" | "unknown";
 
@@ -96,7 +97,7 @@ export async function withRetry<T>(
 				throw new ApiError(kind, message, undefined, attempt);
 			}
 			const delay = base * 2 ** (attempt - 1);
-			console.log(
+			logLine(
 				`[retry] ${kind} (attempt ${attempt}/${retries + 1}) -> ${delay}ms: ${message.slice(0, 80)}`,
 			);
 			await new Promise((r) => setTimeout(r, delay));

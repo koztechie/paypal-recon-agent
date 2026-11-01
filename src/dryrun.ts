@@ -7,6 +7,7 @@
  * mock execution, verify planned actions, produce zero side effects.
  */
 import { appendFileSync, mkdirSync } from "node:fs";
+import { logLine } from "./log.ts";
 import type { ToolkitTools } from "./paypal.ts";
 
 const MONEY_ACTIONS = new Set([
@@ -67,7 +68,7 @@ export function withDryRun(tools: ToolkitTools): ToolkitTools {
 					args,
 				};
 				appendFileSync("logs/dryrun.ndjson", `${JSON.stringify(entry)}\n`);
-				console.log(`[dry-run] BLOCKED ${name} -> simulated`);
+				logLine(`[dry-run] BLOCKED ${name} -> simulated`);
 				void originalExecute; // never called
 				void opts;
 				return simulateResult(name);

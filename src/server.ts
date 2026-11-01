@@ -13,6 +13,7 @@ import {
 	insertWebhookEvent,
 } from "./db.ts";
 import { explainLedgerRow } from "./explain.ts";
+import { logError, logLine } from "./log.ts";
 import { negotiate } from "./negotiation.ts";
 import { parseLedgerQuery } from "./nl.ts";
 import { createPaypalToolkit } from "./paypal.ts";
@@ -96,7 +97,7 @@ const server = createServer((req, res) => {
 	// logs (Render Logs tab / npm run dev output). /health is excluded on purpose —
 	// Render's health checks would flood it.
 	if (url.startsWith("/api/")) {
-		console.log(`[req] ${req.method} ${url.split("?")[0]}`);
+		logLine(`[req] ${req.method} ${url.split("?")[0]}`);
 	}
 
 	if (url.startsWith("/health")) {
@@ -135,7 +136,7 @@ const server = createServer((req, res) => {
 					"logs/webhooks.ndjson",
 					`${JSON.stringify({ received_at: new Date().toISOString(), ...parsed, raw_len: raw.length })}\n`,
 				);
-				console.log(
+				logLine(
 					`[webhook] ${parsed.event_type ?? "unknown"} (${parsed.id ?? "no-id"})`,
 				);
 				try {
@@ -145,17 +146,17 @@ const server = createServer((req, res) => {
 					const dedupe = insertWebhookEvent(full, raw.length);
 					if (full.event_type?.startsWith("PAYMENT.")) {
 						const paymentId = insertPaymentFromEvent(full);
-						console.log(
+						logLine(
 							`[webhook] payment row: ${paymentId ?? "none"} (${dedupe})`,
 						);
 					} else if (full.event_type === "INVOICING.INVOICE.PAID") {
 						const paymentId = insertPaymentFromInvoiceEvent(full);
-						console.log(
+						logLine(
 							`[webhook] invoice-paid row: ${paymentId ?? "none"} (${dedupe})`,
 						);
 					}
 				} catch (dbErr) {
-					console.error("[webhook] db error:", dbErr);
+					logError("[webhook] db error:", dbErr);
 				}
 				res.writeHead(200, { "Content-Type": "application/json" });
 				res.end(JSON.stringify({ received: true }));
@@ -649,13 +650,13 @@ const server = createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-	console.log(`[server] listening on http://localhost:${PORT}`);
+	logLine(`[server] listening on http://localhost:${PORT}`);
 });
 
 // Graceful shutdown (Render sends SIGTERM on deploy)
 for (const sig of ["SIGTERM", "SIGINT"] as const) {
 	process.on(sig, () => {
-		console.log(`[server] ${sig} received, closing...`);
+		logLine(`[server] ${sig} received, closing...`);
 		server.close(() => process.exit(0));
 	});
 }
