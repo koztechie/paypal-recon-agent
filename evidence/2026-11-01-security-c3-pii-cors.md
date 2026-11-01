@@ -35,3 +35,16 @@ browser).
 
 Docs: SECURITY.md Rule 8 · ADR-017 · `.env.example` += `CORS_ORIGINS`.
 **Prod verification + book re-seed: see the follow-up section after the deploy.**
+
+## Prod verification + book re-seed (after deploy `0592b97`)
+
+| Probe on prod | Result |
+|---|---|
+| `Origin: https://evil.example` | **no ACAO header** ✓ |
+| same-origin (`Origin: <prod base>`) | `ACAO: https://paypal-recon-agent.onrender.com` ✓ |
+| `/api/nl-filter` (mini-demo) | **200** ✓ |
+| `/api/action` without token | **401** (C-2 still armed) ✓ |
+| Book after deploy (wiped) | healed by the real signed cycle `SEED-C3-24551` → `INV2-9HG3-UK84-6KJT-HGD7` → paid → rows `0→1→5`, **payment=MATCHED** via auto-reconcile |
+| **PII check on the LIVE response with real events** | **raw emails = 0 · `"payload"` key = false** |
+
+**C-3 status: FIXED + VERIFIED ON PROD (2026-11-01).**
