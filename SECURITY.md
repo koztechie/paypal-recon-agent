@@ -54,6 +54,18 @@ Approval flow: action requested → stored with `executed = 0` → human flips t
 - Webhook events: processed **exactly once** (`paypal_event_id UNIQUE` dedupe guard).
 - Exceeding a frequency limit → action dropped, logged as `BLOCKED`.
 
+## Rule 4a — Reminders: atomic DB reserve (H-8)
+
+The1/24h + 3-lifetime limits live in the `reminder_ledger` table
+(`UNIQUE(invoice_id, sent_date)`), reserved **before** the PayPal call by a single
+synchronous critical section and released when the call fails (a failed attempt
+never burns the slot). One choke point — `withReminderLedger()` wraps the toolkit's
+`send_invoice_reminder`, covering wrapper, raw scripts, the UI, the reminder agent
+and the agent loop. `logs/reminders.json` is a legacy projection (stage-64/50/52
+scripts read it); it is regenerated from the DB and never overwritten by an empty
+table. Verified: concurrent double-send = one PayPal call (suite71/71), stage64 8/8,
+stage52 5/5, stage65 5/5.
+
 ## Rule 5 — Secrets and environment isolation
 
 - `PAYPAL_ENVIRONMENT=SANDBOX` is the default and the only allowed value during the hackathon.

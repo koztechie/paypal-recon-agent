@@ -2,7 +2,6 @@
  * Invoicing helpers on top of the Agent Toolkit (stages 40-45).
  * All calls go through the guardrail whitelist in src/paypal.ts.
  */
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { logAgentAction, markAgentActionExecutedById } from "./auditlog.ts";
 import { enforceActionPolicy } from "./guards.ts";
 import type { ToolkitTools } from "./paypal.ts";
@@ -133,10 +132,7 @@ export async function sendInvoice(
 
 // --- Reminder with SECURITY.md rule-4 limits (max 1/24h, max 3 per invoice) ---
 
-const REMINDER_LEDGER = "logs/reminders.json";
-const REMINDER_MAX_PER_DAY = 1;
-const REMINDER_MAX_LIFETIME = 3;
-const DAY_MS = 24 * 60 * 60 * 1000;
+// Reminder rate-limit state + logic moved to reminder-ledger.ts (H-8: atomic DB reserve).
 
 /** Toolkit execute() returns JSON strings; some calls return nothing (HTTP 204). */
 export function parseToolResult(result: unknown): InvoiceResult {
@@ -157,41 +153,7 @@ export function parseToolResult(result: unknown): InvoiceResult {
 	return parsed as InvoiceResult;
 }
 
-interface ReminderLedger {
-	[invoiceId: string]: string[]; // ISO timestamps
-}
-
-function loadLedger(): ReminderLedger {
-	try {
-		return JSON.parse(readFileSync(REMINDER_LEDGER, "utf8")) as ReminderLedger;
-	} catch {
-		return {};
-	}
-}
-
-export function checkReminderAllowed(invoiceId: string): {
-	allowed: boolean;
-	reason: string;
-} {
-	const ledger = loadLedger();
-	const stamps = (ledger[invoiceId] ?? []).map((s) => new Date(s).getTime());
-	const now = Date.now();
-
-	if (stamps.length >= REMINDER_MAX_LIFETIME) {
-		return {
-			allowed: false,
-			reason: `BLOCKED: lifetime limit reached (${REMINDER_MAX_LIFETIME})`,
-		};
-	}
-	const recent = stamps.filter((t) => now - t < DAY_MS).length;
-	if (recent >= REMINDER_MAX_PER_DAY) {
-		return {
-			allowed: false,
-			reason: `BLOCKED: 24h limit reached (${REMINDER_MAX_PER_DAY}/day)`,
-		};
-	}
-	return { allowed: true, reason: "PASS" };
-}
+export { checkReminderAllowed } from "./reminder-ledger.ts";
 
 /** Guarded manual/external payment recording (stage 53 wrapper — never raw execute). */
 export async function recordExternalPayment(
@@ -241,23 +203,19 @@ export async function sendInvoiceReminder(
 	invoiceId: string,
 	note?: string,
 ): Promise<InvoiceResult> {
-	const gate = checkReminderAllowed(invoiceId);
-	if (!gate.allowed) {
-		logAgentAction({
-			action: "send_invoice_reminder",
-			limitCheck: "BLOCKED",
-			targetRef: invoiceId,
-			executed: false,
-			llmDecision: gate.reason,
-		});
-		throw new Error(gate.reason);
-	}
-
+	// H-8: the rate limit lives in the TOOL envelope (withReminderLedger) — ONE choke
+	// point covering wrapper, raw script, UI, reminder-agent and agent-loop callers.
+	// This wrapper records the audit pair only AFTER a successful send, so a denial
+	// by the envelope can never leave an orphan PASS row (H-7 invariant preserved).
 	const execute = (
 		tools.send_invoice_reminder as unknown as {
 			execute: (a: unknown, o: unknown) => Promise<unknown>;
 		}
 	).execute;
+	const result = await execute(
+		{ invoice_id: invoiceId, ...(note ? { note } : {}) },
+		{ toolCallId: "send-reminder", messages: [] },
+	);
 	const remindLogId = logAgentAction({
 		action: "send_invoice_reminder",
 		limitCheck: "PASS",
@@ -265,18 +223,6 @@ export async function sendInvoiceReminder(
 		executed: false,
 		llmDecision: "direct-call:sendInvoiceReminder",
 	});
-	const result = await execute(
-		{ invoice_id: invoiceId, ...(note ? { note } : {}) },
-		{ toolCallId: "send-reminder", messages: [] },
-	);
-
-	// Record only after a successful call.
-	const ledger = loadLedger();
-	ledger[invoiceId] = [...(ledger[invoiceId] ?? []), new Date().toISOString()];
-	mkdirSync("logs", { recursive: true });
-	writeFileSync(REMINDER_LEDGER, JSON.stringify(ledger, null, 2));
-
-	const parsed = parseToolResult(result);
 	markAgentActionExecutedById(remindLogId);
-	return parsed;
+	return parseToolResult(result);
 }

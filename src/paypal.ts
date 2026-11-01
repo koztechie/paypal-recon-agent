@@ -9,6 +9,7 @@
 import { PayPalAgentToolkit } from "@paypal/agent-toolkit/ai-sdk";
 import { isDryRun, withDryRun } from "./dryrun.ts";
 import { logLine } from "./log.ts";
+import { withReminderLedger } from "./reminder-ledger.ts";
 
 export function createPaypalToolkit(): PayPalAgentToolkit {
 	const clientId = process.env.PAYPAL_CLIENT_ID;
@@ -83,7 +84,9 @@ export function createPaypalToolkit(): PayPalAgentToolkit {
 	// Stage 123: the ONE place where DRY_RUN applies — every consumer of getTools()
 	// gets stubbed money actions in dry-run mode (keyless demos stay side-effect-free).
 	return {
-		getTools: () => withDryRun(toolkit.getTools()),
+		// H-8 choke point: the reminder envelope wraps OUTSIDE dry-run so even
+		// dry sends reserve a slot and feed the legacy mirror (stage-50 expects it).
+		getTools: () => withReminderLedger(withDryRun(toolkit.getTools())),
 	} as unknown as PayPalAgentToolkit;
 }
 

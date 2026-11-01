@@ -148,3 +148,13 @@ CREATE INDEX IF NOT EXISTS idx_actions_name ON agent_actions(action);
 --              reconciliation_records, webhook_events, agent_actions
 -- ----------------------------------------------------------------------------
 -- SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';
+
+-- H-8: atomic reminder-rate ledger (UNIQUE(invoice_id, sent_date) = the1/24h limit
+-- enforced by the database itself; the JSON file is a legacy projection only).
+CREATE TABLE IF NOT EXISTS reminder_ledger (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    invoice_id TEXT NOT NULL,
+    sent_at    TEXT NOT NULL,
+    sent_date  TEXT NOT NULL,
+    UNIQUE (invoice_id, sent_date)
+);

@@ -69,6 +69,16 @@ const rec = await createDraftInvoice(tools, {
 	invoiceNumber: NUM,
 });
 const invoiceId = rec.id as string;
+// PayPal now rejects reminders on DRAFT (it worked on 28.10, enforced since) — a
+// reminder only makes sense for a SENT invoice anyway, so send it first.
+await (
+	tools.send_invoice as unknown as {
+		execute: (a: unknown, o: unknown) => Promise<unknown>;
+	}
+).execute(
+	{ invoice_id: invoiceId, send_to_recipient: true },
+	{ toolCallId: "stage64-send", messages: [] },
+);
 const gate0 = checkReminderAllowed(invoiceId);
 if (!gate0.allowed) throw new Error(gate0.reason);
 await sendInvoiceReminder(
