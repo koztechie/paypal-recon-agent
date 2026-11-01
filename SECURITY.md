@@ -82,4 +82,15 @@ and only `verification_status: SUCCESS` may reach the books (security finding
 | 5 | `.env.example` + CI grep + input sanitation | stage 121: 0 key hits |
 | 6 | webhook signature verification (`src/webhook-verify.ts`) | live: forged POST → 401, rows unchanged (188→188) |
 
+## Rule 7 — Token-gate the state-changing endpoints
+
+`/api/action` (a REAL reminder email / a REVIEW→MATCHED book change),
+`/api/recon/run` (writes records) and `/api/negotiate` (LLM quota) are gated by
+`ACTION_TOKEN` (security finding **C-2**, fixed 2026-11-01; module `src/api-auth.ts`,
+tests `tests/api-auth.test.ts`): with the token set, requests must carry
+`Authorization: Bearer <token>` or `X-Action-Token: <token>` (length-safe compare)
+⇒ otherwise `401`. With it unset the endpoints work but log a LOUD warning on every
+call (deploy-safe default, same pattern as Rule 6). The hosted keyless demo surfaces
+stay public on purpose — an explicit hackathon requirement (R6): `/`, `/health`,
+`/api/app-config`, `/api/recon/rows`, `/api/nl-filter`, `/api/explain`.
 *If a rule and a feature conflict, the rule wins. Report the conflict in `DECISIONS.md` as a new ADR.*

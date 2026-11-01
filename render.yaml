@@ -18,6 +18,12 @@ services:
         value: '22'
       - key: PAYPAL_ENVIRONMENT
         value: SANDBOX
+      # Explicit (security C-2): the hosted demo runs REAL sandbox mode on purpose;
+      # the abuse risk is closed by token-gating the mutating endpoints instead.
+      - key: DRY_RUN
+        value: 'false'
+      - key: ACTION_TOKEN
+        sync: false
       - key: LLM_PROVIDER
         value: gemini
       - key: LLM_MODEL

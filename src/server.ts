@@ -4,7 +4,12 @@
  * Routes: GET /health -> 200 (marker for stage 32), GET / -> app stub.
  */
 import { appendFileSync, mkdirSync } from "node:fs";
-import { createServer } from "node:http";
+import {
+	createServer,
+	type IncomingMessage,
+	type ServerResponse,
+} from "node:http";
+import { checkActionAuth } from "./api-auth.ts";
 import { buildContract } from "./contract.ts";
 import {
 	getDb,
@@ -90,6 +95,37 @@ a{color:var(--blue)}
 </body>
 </html>
 `;
+
+/** C-2 guard for state-changing endpoints; false once a 401 has been sent. */
+function guardAction(
+	req: IncomingMessage,
+	res: ServerResponse,
+	route: string,
+): boolean {
+	const rawToken = req.headers["x-action-token"];
+	const auth = checkActionAuth(
+		req.headers.authorization,
+		typeof rawToken === "string" ? rawToken : undefined,
+		process.env.ACTION_TOKEN,
+	);
+	if (auth.allowed) {
+		if (auth.warnUnprotected) {
+			logLine(
+				`[auth] WARNING: ACTION_TOKEN is not set — ${route} is OPEN (set it in production, security C-2)`,
+			);
+		}
+		return true;
+	}
+	logError(`[auth] REJECTED unauthorized ${route} call`);
+	res.writeHead(401, { "Content-Type": "application/json" });
+	res.end(
+		JSON.stringify({
+			error: "unauthorized",
+			hint: "send Authorization: Bearer <ACTION_TOKEN> or X-Action-Token",
+		}),
+	);
+	return false;
+}
 
 const server = createServer((req, res) => {
 	const url = req.url ?? "/";
@@ -420,6 +456,7 @@ const server = createServer((req, res) => {
 
 	// Row actions from the Ledger UI (stage 86): guarded PayPal call / human resolution.
 	if (req.method === "POST" && url.split("?")[0] === "/api/action") {
+		if (!guardAction(req, res, "/api/action")) return;
 		let raw = "";
 		req.on("data", (chunk: Buffer) => {
 			raw += chunk.toString("utf8");
@@ -490,6 +527,7 @@ const server = createServer((req, res) => {
 	// when it settles, attach the validated contract JSON (the "settled" button in
 	// the negotiation window reveals it).
 	if (req.method === "POST" && url.split("?")[0] === "/api/negotiate") {
+		if (!guardAction(req, res, "/api/negotiate")) return;
 		const cors = { "Access-Control-Allow-Origin": "*" };
 		let raw = "";
 		req.on("data", (chunk: Buffer) => {
@@ -643,6 +681,7 @@ const server = createServer((req, res) => {
 	// unreconciled COMPLETED payments), so repeated calls are effectively no-ops.
 	// This is how "звірити" runs on the public URL of the production service.
 	if (req.method === "POST" && url.split("?")[0] === "/api/recon/run") {
+		if (!guardAction(req, res, "/api/recon/run")) return;
 		const cors = { "Access-Control-Allow-Origin": "*" };
 		req.on("data", () => undefined);
 		req.on("end", async () => {

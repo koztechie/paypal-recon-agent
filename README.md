@@ -120,9 +120,10 @@ filters, AI explanations, row actions, NL queries), **Negotiation demo** window,
 
 - Health: <https://paypal-recon-agent.onrender.com/health> → `200`
   (free instance sleeps — the first hit may take ~50 s).
-- Public API: `/api/nl-filter` (ask in plain English), `/api/explain` (row
-  explanations), `/api/recon/run` (incremental reconciliation), `/api/app-config`
-  (runtime config, no secrets).
+- Public API (keyless demo surfaces): `/api/nl-filter` (ask in plain English),
+  `/api/explain` (row explanations), `/api/app-config` (runtime config, no secrets).
+  The state-changing endpoints — `/api/action`, `/api/recon/run`, `/api/negotiate` —
+  require `Authorization: Bearer $ACTION_TOKEN` in production (see SECURITY.md).
 - Logs: Render dashboard → **Logs** tab; locally `logs/webhooks.ndjson` and friends.
 
 ## Troubleshooting — 5 common startup errors
