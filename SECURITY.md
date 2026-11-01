@@ -81,6 +81,7 @@ and only `verification_status: SUCCESS` may reach the books (security finding
 | 4 | rate limiter in `src/ratelimit.ts` | stage 64: 10 repeats → identical outcome |
 | 5 | `.env.example` + CI grep + input sanitation | stage 121: 0 key hits |
 | 6 | webhook signature verification (`src/webhook-verify.ts`) | live: forged POST → 401, rows unchanged (188→188) |
+| 1–3 | agent loop choke point (`src/agent.ts` `guardAgentTool`, finding H-1) | stage73 real DRAFT→SENT 5/5; blocked paths unit-tested (40/40) |
 
 ## Rule 7 — Token-gate the state-changing endpoints
 

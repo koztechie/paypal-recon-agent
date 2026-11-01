@@ -7,7 +7,10 @@
  * Gemini native functionDeclarations + multi-turn content parts (including the
  * thoughtSignature returned with a functionCall part, per Gemini docs).
  */
-import { zodToJsonSchema } from "zod-to-json-schema";
+import { toJSONSchema } from "zod";
+import { logAgentAction, markAgentActionExecuted } from "./auditlog.ts";
+import { enforceActionPolicy } from "./guards.ts";
+import { checkReminderAllowed } from "./invoicing.ts";
 import { chatRaw } from "./llm.ts";
 import { createPaypalToolkit, type ToolkitTools } from "./paypal.ts";
 import { AGENT_SYSTEM_PROMPT } from "./prompts.ts";
@@ -59,6 +62,15 @@ function sanitizeForGemini(node: unknown): unknown {
 				out.properties = props;
 				continue;
 			}
+			if (k === "type" && Array.isArray(v)) {
+				// zod4 native nullable encodes `["string","null"]`; Gemini's proto rejects a
+				// repeated `type`, so normalize to the OpenAPI-ish shape the old converter
+				// produced: plain type + nullable:true (nullable is in GEMINI_ALLOWED).
+				const types = v.filter((x): x is string => typeof x === "string");
+				if (types.includes("null")) out.nullable = true;
+				out.type = types.find((x) => x !== "null") ?? types[0] ?? "string";
+				continue;
+			}
 			if (!GEMINI_ALLOWED.has(k)) continue;
 			out[k] = sanitizeForGemini(v);
 		}
@@ -70,9 +82,14 @@ function sanitizeForGemini(node: unknown): unknown {
 function toolDeclarations(tools: ToolkitTools) {
 	return Object.entries(tools).map(([name, tool]) => {
 		const t = tool as unknown as { description?: string; parameters?: unknown };
-		const schema = zodToJsonSchema(t.parameters as never, {
-			target: "openApi3",
-		}) as Record<string, unknown>;
+		// zod4 native converter: the C-4 zod override made zod-to-json-schema@3 emit
+		// EMPTY parameter schemas (regression caught by re-running the stage-73 caller),
+		// which silently made the model send {} args. Native output keeps
+		// properties/required; sanitizeForGemini() drops $schema/additionalProperties.
+		const schema = toJSONSchema(t.parameters as never) as Record<
+			string,
+			unknown
+		>;
 		return {
 			name,
 			description: (t.description ?? name).slice(0, 900),
@@ -81,11 +98,81 @@ function toolDeclarations(tools: ToolkitTools) {
 	});
 }
 
+/** Amount in minor units for money-carrying tools;0 otherwise; NaN = unparseable (fail-closed below). */
+function moneyMinorOf(toolName: string, args: Record<string, unknown>): number {
+	if (toolName === "record_payment_for_invoice") {
+		const v = Number(args.amount);
+		return Number.isFinite(v) ? Math.round(v * 100) : Number.NaN;
+	}
+	if (toolName === "create_invoice") {
+		const items = Array.isArray(args.items) ? args.items : [];
+		if (items.length === 0) return Number.NaN;
+		let total = 0;
+		for (const it of items) {
+			const o = it as { unit_amount?: { value?: unknown }; quantity?: unknown };
+			const v = Number(o?.unit_amount?.value);
+			const q = Number(o?.quantity ?? 1);
+			if (!Number.isFinite(v) || !Number.isFinite(q)) return Number.NaN;
+			total += Math.round(v * 100) * q;
+		}
+		return total;
+	}
+	return 0;
+}
+
+function targetRefOf(args: Record<string, unknown>): string | undefined {
+	for (const key of ["invoice_id", "item_name", "itemName", "id"]) {
+		const v = args[key];
+		if (typeof v === "string" && v) return v.slice(0, 120);
+	}
+	return undefined;
+}
+
+/**
+ * H-1: the loop executes tools ONLY through the same guardrails the README claims —
+ * reminder rate-limit, then enforceActionPolicy (money + red list), fail-closed on an
+ * unparseable amount. Every decision is audited; a refusal reason goes back to the
+ * model. Returns null when the call may proceed.
+ */
+function guardAgentTool(
+	toolName: string,
+	args: Record<string, unknown>,
+): string | null {
+	const ref = targetRefOf(args);
+	if (toolName === "send_invoice_reminder") {
+		const rate = checkReminderAllowed(String(args.invoice_id ?? ""));
+		if (!rate.allowed) {
+			logAgentAction({
+				action: toolName,
+				limitCheck: "BLOCKED",
+				targetRef: ref,
+				executed: false,
+				llmDecision: `system-policy -> BLOCKED: ${rate.reason}`,
+			});
+			return rate.reason;
+		}
+	}
+	const minor = moneyMinorOf(toolName, args);
+	if (Number.isNaN(minor)) {
+		logAgentAction({
+			action: toolName,
+			limitCheck: "BLOCKED",
+			targetRef: ref,
+			executed: false,
+			llmDecision: "system-policy -> BLOCKED: unparseable amount (fail-closed)",
+		});
+		return "BLOCKED: unparseable amount for a money action (fail-closed)";
+	}
+	const decision = enforceActionPolicy(toolName, minor, { targetRef: ref });
+	return decision.allowed ? null : decision.reason;
+}
+
 export async function runAgentTurn(
 	userPrompt: string,
-	opts: { maxSteps?: number; tools?: ToolkitTools } = {},
+	opts: { maxSteps?: number; tools?: ToolkitTools; chat?: typeof chatRaw } = {},
 ): Promise<AgentToolResult> {
 	const tools = opts.tools ?? createPaypalToolkit().getTools();
+	const chat = opts.chat ?? chatRaw;
 	const declarations = toolDeclarations(tools);
 	const maxSteps = opts.maxSteps ?? 6;
 	const contents: Part[] = [{ role: "user", parts: [{ text: userPrompt }] }];
@@ -93,7 +180,7 @@ export async function runAgentTurn(
 	let finalText = "";
 
 	for (let step = 1; step <= maxSteps; step++) {
-		const res = await chatRaw(userPrompt, {
+		const res = await chat(userPrompt, {
 			contents,
 			functionDeclarations: declarations,
 			system: AGENT_SYSTEM_PROMPT,
@@ -129,17 +216,31 @@ export async function runAgentTurn(
 			const validated = tool.parameters?.parse
 				? tool.parameters.parse(args)
 				: args;
-			response = await tool.execute(validated, {
-				toolCallId: `agent-${step}`,
-				messages: [],
-			});
-			// Toolkit returns JSON strings; keep the shape predictable for the model.
-			if (typeof response === "string") {
-				try {
-					response = JSON.parse(response);
-				} catch {
-					/* keep raw string */
+			// H-1 choke point: guardrails BEFORE execution, exactly as README claims.
+			const refusal = guardAgentTool(
+				name,
+				(validated ?? {}) as Record<string, unknown>,
+			);
+			if (refusal) {
+				response = { blocked: true, error: refusal };
+				ok = false;
+			} else {
+				response = await tool.execute(validated, {
+					toolCallId: `agent-${step}`,
+					messages: [],
+				});
+				// Toolkit returns JSON strings; keep the shape predictable for the model.
+				if (typeof response === "string") {
+					try {
+						response = JSON.parse(response);
+					} catch {
+						/* keep raw string */
+					}
 				}
+				markAgentActionExecuted(
+					name,
+					targetRefOf((validated ?? {}) as Record<string, unknown>),
+				);
 			}
 		} catch (e) {
 			ok = false;
