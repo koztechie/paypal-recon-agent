@@ -2,11 +2,6 @@ import Link from "next/link";
 import { LiveRowCount } from "./components/live-row-count";
 import { TopNav } from "./components/top-nav";
 
-const dashboard = {
-	href: "/dashboard",
-	label: "Dashboard",
-	detail: "AG Studio reports over all of the data",
-};
 
 // One page per PayPal endpoint the demo calls, each in app/(endpoints).
 const endpoints = [

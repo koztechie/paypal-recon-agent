@@ -8,7 +8,7 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -16,6 +16,9 @@ jobs:
         with:
           node-version: "22"
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            web/package-lock.json
 
       - name: Secret scan (tracked files)
         run: |
@@ -37,3 +40,24 @@ jobs:
 
       - name: Test
         run: npm test
+
+      # H-10: CI used to cover the backend only — the Next app (where the CRITICAL
+      # advisory lived, C-4) never compiled here and no dependency audit ran anywhere.
+      - name: Dependency audit (root)
+        run: npm audit --audit-level=high
+
+      - name: Web install
+        working-directory: web
+        run: npm ci
+
+      - name: Web lint (eslint)
+        working-directory: web
+        run: npm run lint
+
+      - name: Dependency audit (web)
+        working-directory: web
+        run: npm audit --audit-level=high
+
+      - name: Web build (next)
+        working-directory: web
+        run: npm run build

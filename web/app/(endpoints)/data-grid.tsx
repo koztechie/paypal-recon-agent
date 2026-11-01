@@ -269,7 +269,11 @@ export function DataGrid({
 		const found = rows.find(
 			(r) => `${String(r.kind)}:${String(r.ref)}` === key,
 		);
+		/* eslint-disable react-hooks/set-state-in-effect -- intentional external-sync:
+		   the OPEN detail row follows refreshed rows after a stage-86 action;
+		   deriving it from render would close the panel on transient filter states. */
 		if (found && found !== detail) setDetail(found);
+		/* eslint-enable react-hooks/set-state-in-effect */
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [rows]);
 	const apiRef = useRef<GridApi<Row> | null>(null);
@@ -320,10 +324,14 @@ export function DataGrid({
 		const kind = typeof detail?.kind === "string" ? detail.kind : "";
 		const ref = typeof detail?.ref === "string" ? detail.ref : "";
 		if (explainApi && (kind === "PAYMENT" || kind === "INVOICE") && ref) {
+			/* eslint-disable react-hooks/set-state-in-effect -- intentional:
+			   the explain lifecycle starts synchronously (loading marker, stage 85);
+			   fetch/setState continues in async callbacks. */
 			void loadExplain(kind, ref);
 		} else {
 			setExplain(null);
 		}
+		/* eslint-enable react-hooks/set-state-in-effect */
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [detail, explainApi]);
 
