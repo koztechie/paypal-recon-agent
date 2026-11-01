@@ -43,3 +43,11 @@ surface (verified via render.yaml → single `npm run start` service).
 Docs: SECURITY.md Rule 10 · ADR-019.
 
 **C-5 status: FIXED + VERIFIED (local surface; prod unaffected by design).**
+
+## CI follow-up (honest log)
+Two of my own gates slipped and CI caught them: (1) the new test file skipped the
+biome format pass → `Lint (biome)` red (`8fd45d9` fixed it); (2) a TS narrowing
+error in the same test was **masked locally by a `| tail` pipe** (the pipeline's
+exit code, not tsc's, reached my `&&` chain) and got pushed → `Build` red; fixed
+properly with `assert.ok` narrowing (`d7086e4`). Final gates re-run with **unpiped
+exit codes**: lint0 · build0 · tests rc0 (35/35) → **CI success**.
