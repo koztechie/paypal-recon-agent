@@ -97,6 +97,32 @@ export function insertPaymentFromInvoiceEvent(
 }
 
 /** Extract a payments row from PAYMENT.* webhook resources (capture/sale shape). */
+/**
+ * H-2: the TRUE status of a payment capture event — `null` means "we do not know
+ * this event well enough to store it" (fail-closed: no row, never a fake COMPLETED).
+ * Only the COMPLETED status is a reconciliation candidate (src/reconcile.ts).
+ */
+const CAPTURE_STATUS: Record<string, string> = {
+	"PAYMENT.CAPTURE.COMPLETED": "COMPLETED",
+	"PAYMENT.CAPTURE.PENDING": "PENDING",
+	// The schema vocabulary is ('PENDING','COMPLETED','FAILED','REFUNDED') — a
+	// denied or reversed capture did not stick, so it is FAILED (never COMPLETED).
+	"PAYMENT.CAPTURE.DENIED": "FAILED",
+	"PAYMENT.CAPTURE.REVERSED": "FAILED",
+	"PAYMENT.CAPTURE.REFUNDED": "REFUNDED",
+};
+
+export function paymentStatusFromEvent(
+	eventType: string | undefined,
+): string | null {
+	if (!eventType) return null;
+	return CAPTURE_STATUS[eventType] ?? null;
+}
+
+/** Money-lifecycle precedence for upserts: a later, more final state supersedes. */
+const STATUS_RANK_SQL = (col: string) =>
+	`CASE ${col} WHEN 'PENDING' THEN 0 WHEN 'FAILED' THEN 1 WHEN 'COMPLETED' THEN 2 WHEN 'REFUNDED' THEN 3 ELSE 0 END`;
+
 export function insertPaymentFromEvent(
 	payload: WebhookPayload,
 ): string | undefined {
@@ -114,18 +140,24 @@ export function insertPaymentFromEvent(
 	const payer = (res.payer ?? {}) as { email_address?: string };
 	const paymentId = typeof res.id === "string" ? res.id : undefined;
 	if (!paymentId) return undefined;
+	// H-2: store the event's TRUE status; unknown events store nothing at all.
+	const status = paymentStatusFromEvent(payload.event_type);
+	if (!status) return undefined;
 
 	const d = getDb();
 	d.prepare(
 		`INSERT INTO payments (paypal_payment_id, currency, amount_minor, fee_minor, net_minor, status, source, received_at, raw_json)
-     VALUES (?, ?, ?, ?, ?, 'COMPLETED', 'webhook', ?, ?)
-     ON CONFLICT(paypal_payment_id) DO NOTHING`,
+     VALUES (?, ?, ?, ?, ?, ?, 'webhook', ?, ?)
+     ON CONFLICT(paypal_payment_id) DO UPDATE SET
+       status = CASE WHEN ${STATUS_RANK_SQL("excluded.status")} > ${STATUS_RANK_SQL("status")}
+                     THEN excluded.status ELSE status END`,
 	).run(
 		paymentId,
 		amount.currency_code ?? "USD",
 		dollarsToMinor(amount.value),
 		dollarsToMinor(fee.value),
 		dollarsToMinor(net.value ?? amount.value),
+		status,
 		payload.create_time ?? new Date().toISOString(),
 		JSON.stringify({
 			event_id: payload.id,
