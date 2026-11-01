@@ -22,6 +22,7 @@ import {
 import { explainLedgerRow } from "./explain.ts";
 import { primeFxRates } from "./fx.ts";
 import { logError, logLine } from "./log.ts";
+import { formatMinorUnits } from "./money-format.ts";
 import { negotiate } from "./negotiation.ts";
 import { parseLedgerQuery } from "./nl.ts";
 import { createPaypalToolkit } from "./paypal.ts";
@@ -380,7 +381,10 @@ const server = createServer((req, res) => {
 					ref: p.ref,
 					status: p.status,
 					recon: p.recon ?? "PENDING",
-					amount: (Number(p.amount_minor) / 100).toFixed(2),
+					amount: formatMinorUnits(
+						Number(p.amount_minor),
+						typeof p.currency === "string" ? p.currency : undefined,
+					), // M-2: JPY shows "500", USD "43.50"
 					fee: (Number(p.fee_minor) / 100).toFixed(2),
 					net:
 						p.net_minor != null ? (Number(p.net_minor) / 100).toFixed(2) : "",

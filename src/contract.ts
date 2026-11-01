@@ -16,6 +16,7 @@ import { logAgentAction } from "./auditlog.ts";
 import { isDryRun } from "./dryrun.ts";
 import { createDraftInvoice, type InvoiceResult } from "./invoicing.ts";
 import { chat } from "./llm.ts";
+import { formatMinorUnits } from "./money-format.ts";
 import type { NegotiationConfig, NegotiationResult } from "./negotiation.ts";
 import type { ToolkitTools } from "./paypal.ts";
 
@@ -167,7 +168,7 @@ export async function buildContract(
 
 	// LLM drafts the narrative; code owns every number AND the payment terms
 	// (an earlier run showed the model inventing net-30 from nothing — not anymore).
-	let summary = `Agreed ${quantity} × "${cfg.item}" at ${(agreed / 100).toFixed(2)} ${cfg.currency}, net ${cfg.paymentDays ?? 7} days.`;
+	let summary = `Agreed ${quantity} × "${cfg.item}" at ${formatMinorUnits(agreed, cfg.currency)} ${cfg.currency}, net ${cfg.paymentDays ?? 7} days.`;
 	let source: Contract["source"] = "template";
 	try {
 		const r = await chat(SYSTEM, transcript.join("\n"), {
@@ -259,7 +260,11 @@ export async function createInvoiceFromContract(
 	if (!buyerEmail && !isDryRun()) {
 		refuse("contract has no parties.buyer_email");
 	}
-	const amount = (contract.price.total_minor / 100).toFixed(2);
+	// M-2: currency-aware string for the PayPal API (¥500 must NOT become "500.00").
+	const amount = formatMinorUnits(
+		contract.price.total_minor,
+		contract.subject.currency,
+	);
 	const termsNote = `net ${contract.terms.days} days`;
 	// Dry-run may proceed without a real recipient (nothing is ever sent).
 	const recipient = buyerEmail ?? "dry-run@placeholder.invalid";

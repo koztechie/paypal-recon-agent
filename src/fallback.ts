@@ -13,6 +13,7 @@ import type {
 } from "./actions.ts";
 import { logAgentAction } from "./auditlog.ts";
 import { logLine } from "./log.ts";
+import { formatMinorUnits } from "./money-format.ts";
 
 const OPEN_STATUSES = new Set(["SENT", "PARTIALLY_PAID"]);
 
@@ -26,7 +27,7 @@ export function classifyPaymentRules(
 		if (!inv) {
 			return {
 				class: "FOREIGN",
-				reason: `Invoice ${payment.invoiceNumber} does not exist; payment of ${(payment.amountMinor / 100).toFixed(2)} ${payment.currency} cannot be tied to it.`,
+				reason: `Invoice ${payment.invoiceNumber} does not exist; payment of ${formatMinorUnits(payment.amountMinor, payment.currency)} ${payment.currency} cannot be tied to it.`,
 			};
 		}
 		if (inv.currency !== payment.currency) {
@@ -38,18 +39,18 @@ export function classifyPaymentRules(
 		if (payment.amountMinor < inv.totalMinor) {
 			return {
 				class: "PARTIAL",
-				reason: `Invoice ${inv.invoiceNumber} total is ${(inv.totalMinor / 100).toFixed(2)} but the payment is ${(payment.amountMinor / 100).toFixed(2)} — underpayment of ${((inv.totalMinor - payment.amountMinor) / 100).toFixed(2)} ${payment.currency}.`,
+				reason: `Invoice ${inv.invoiceNumber} total is ${formatMinorUnits(inv.totalMinor, payment.currency)} but the payment is ${formatMinorUnits(payment.amountMinor, payment.currency)} — underpayment of ${formatMinorUnits(inv.totalMinor - payment.amountMinor, payment.currency)} ${payment.currency}.`,
 			};
 		}
 		if (payment.amountMinor > inv.totalMinor) {
 			return {
 				class: "MISMATCH",
-				reason: `Invoice ${inv.invoiceNumber} total is ${(inv.totalMinor / 100).toFixed(2)} but the payment is ${(payment.amountMinor / 100).toFixed(2)} — overpayment of ${((payment.amountMinor - inv.totalMinor) / 100).toFixed(2)} ${payment.currency}.`,
+				reason: `Invoice ${inv.invoiceNumber} total is ${formatMinorUnits(inv.totalMinor, payment.currency)} but the payment is ${formatMinorUnits(payment.amountMinor, payment.currency)} — overpayment of ${formatMinorUnits(payment.amountMinor - inv.totalMinor, payment.currency)} ${payment.currency}.`,
 			};
 		}
 		return {
 			class: "PAID",
-			reason: `Invoice ${inv.invoiceNumber} matches exactly: number + amount (${(payment.amountMinor / 100).toFixed(2)}) + currency (${payment.currency}).`,
+			reason: `Invoice ${inv.invoiceNumber} matches exactly: number + amount (${formatMinorUnits(payment.amountMinor, payment.currency)}) + currency (${payment.currency}).`,
 		};
 	}
 
@@ -64,18 +65,18 @@ export function classifyPaymentRules(
 		const inv = matches[0] as OpenInvoice;
 		return {
 			class: "PAID",
-			reason: `No reference, but exactly one open invoice #${inv.invoiceNumber} has the same amount (${(payment.amountMinor / 100).toFixed(2)}) and currency — matched uniquely.`,
+			reason: `No reference, but exactly one open invoice #${inv.invoiceNumber} has the same amount (${formatMinorUnits(payment.amountMinor, payment.currency)}) and currency — matched uniquely.`,
 		};
 	}
 	if (matches.length > 1) {
 		return {
 			class: "FOREIGN",
-			reason: `No reference and ${matches.length} open invoices share amount ${(payment.amountMinor / 100).toFixed(2)} ${payment.currency} — ambiguous, human routing needed.`,
+			reason: `No reference and ${matches.length} open invoices share amount ${formatMinorUnits(payment.amountMinor, payment.currency)} ${payment.currency} — ambiguous, human routing needed.`,
 		};
 	}
 	return {
 		class: "FOREIGN",
-		reason: `No reference and no open invoice matches ${(payment.amountMinor / 100).toFixed(2)} ${payment.currency}.`,
+		reason: `No reference and no open invoice matches ${formatMinorUnits(payment.amountMinor, payment.currency)} ${payment.currency}.`,
 	};
 }
 
@@ -122,8 +123,8 @@ export function explainRules(input: {
 	paymentAmountMinor: number;
 	invoiceRef?: string;
 }): string {
-	const amount = (input.paymentAmountMinor / 100).toFixed(2);
-	const variance = (input.varianceMinor / 100).toFixed(2);
+	const amount = formatMinorUnits(input.paymentAmountMinor, input.currency); // M-2
+	const variance = formatMinorUnits(input.varianceMinor, input.currency); // M-2
 	switch (input.status) {
 		case "MATCHED":
 			return `Payment of ${amount} ${input.currency}${input.invoiceRef ? ` for invoice ${input.invoiceRef}` : ""} matched exactly. No action needed.`;

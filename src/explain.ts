@@ -7,6 +7,7 @@
  */
 import { getDb } from "./db.ts";
 import { chat } from "./llm.ts";
+import { formatMinorUnits } from "./money-format.ts";
 
 export interface ExplainResult {
 	explanation: string;
@@ -23,7 +24,7 @@ const SYMBOLS: Record<string, string> = {
 
 function money(minor: number, currency: string): string {
 	const sym = SYMBOLS[currency] ?? `${currency} `;
-	return `${sym}${(minor / 100).toFixed(2)}`;
+	return `${sym}${formatMinorUnits(minor, currency)}`; // M-2: ¥500 not ¥500.00
 }
 
 interface Facts {
