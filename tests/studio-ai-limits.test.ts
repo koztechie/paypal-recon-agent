@@ -11,8 +11,12 @@ test("local host without Origin (curl / server tooling) -> allowed", () => {
 });
 
 test("local host with local Origin (the Studio UI itself) -> allowed", () => {
-	assert.deepEqual(guardStudioAi("http://localhost:3001", "localhost:3001"), { ok: true });
-	assert.deepEqual(guardStudioAi("http://127.0.0.1:3001", "127.0.0.1:3001"), { ok: true });
+	assert.deepEqual(guardStudioAi("http://localhost:3001", "localhost:3001"), {
+		ok: true,
+	});
+	assert.deepEqual(guardStudioAi("http://127.0.0.1:3001", "127.0.0.1:3001"), {
+		ok: true,
+	});
 });
 
 test("evil Origin against local host -> REJECTED (the localhost burn vector)", () => {
@@ -26,8 +30,17 @@ test("Origin 'null' (sandboxed iframe) -> REJECTED", () => {
 });
 
 test("non-local Host (if web were ever deployed) -> REJECTED", () => {
-	assert.equal(guardStudioAi(undefined, "paypal-recon-agent.onrender.com").ok, false);
-	assert.equal(guardStudioAi("https://paypal-recon-agent.onrender.com", "paypal-recon-agent.onrender.com").ok, false);
+	assert.equal(
+		guardStudioAi(undefined, "paypal-recon-agent.onrender.com").ok,
+		false,
+	);
+	assert.equal(
+		guardStudioAi(
+			"https://paypal-recon-agent.onrender.com",
+			"paypal-recon-agent.onrender.com",
+		).ok,
+		false,
+	);
 });
 
 test("lookalike host localhost.evil.com -> REJECTED", () => {
@@ -36,20 +49,32 @@ test("lookalike host localhost.evil.com -> REJECTED", () => {
 
 // ---------- validateAiBody(text) ----------
 test("valid small JSON with messages -> ok, parsed body", () => {
-	const out = validateAiBody(JSON.stringify({ model: "gpt-5.4-mini", messages: [{ role: "user", content: "hi" }] }));
+	const out = validateAiBody(
+		JSON.stringify({
+			model: "gpt-5.4-mini",
+			messages: [{ role: "user", content: "hi" }],
+		}),
+	);
 	assert.equal(out.ok, true);
 	assert.equal(out.ok && out.body.messages.length, 1);
 });
 
 test("body over64KB -> rejected with413", () => {
-	const big = JSON.stringify({ messages: [{ role: "user", content: "x".repeat(70_000) }] });
+	const big = JSON.stringify({
+		messages: [{ role: "user", content: "x".repeat(70_000) }],
+	});
 	const out = validateAiBody(big);
 	assert.equal(out.ok, false);
 	assert.equal(!out.ok && out.status, 413);
 });
 
 test("more than50 messages -> rejected with400", () => {
-	const many = JSON.stringify({ messages: Array.from({ length: 51 }, (_, i) => ({ role: "user", content: `m${i}` })) });
+	const many = JSON.stringify({
+		messages: Array.from({ length: 51 }, (_, i) => ({
+			role: "user",
+			content: `m${i}`,
+		})),
+	});
 	const out = validateAiBody(many);
 	assert.equal(out.ok, false);
 	assert.equal(!out.ok && out.status, 400);
