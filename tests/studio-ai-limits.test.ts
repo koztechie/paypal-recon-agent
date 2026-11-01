@@ -55,8 +55,8 @@ test("valid small JSON with messages -> ok, parsed body", () => {
 			messages: [{ role: "user", content: "hi" }],
 		}),
 	);
-	assert.equal(out.ok, true);
-	assert.equal(out.ok && out.body.messages.length, 1);
+	assert.ok(out.ok, "small valid body must pass");
+	assert.equal((out.body.messages as unknown[]).length, 1);
 });
 
 test("body over64KB -> rejected with413", () => {
