@@ -8,7 +8,7 @@
  * thoughtSignature returned with a functionCall part, per Gemini docs).
  */
 import { toJSONSchema } from "zod";
-import { logAgentAction, markAgentActionExecuted } from "./auditlog.ts";
+import { logAgentAction, markAgentActionExecutedById } from "./auditlog.ts";
 import { enforceActionPolicy } from "./guards.ts";
 import { checkReminderAllowed } from "./invoicing.ts";
 import { chatRaw } from "./llm.ts";
@@ -137,7 +137,7 @@ function targetRefOf(args: Record<string, unknown>): string | undefined {
 function guardAgentTool(
 	toolName: string,
 	args: Record<string, unknown>,
-): string | null {
+): { refusal: string | null; logId?: number } {
 	const ref = targetRefOf(args);
 	if (toolName === "send_invoice_reminder") {
 		const rate = checkReminderAllowed(String(args.invoice_id ?? ""));
@@ -149,7 +149,7 @@ function guardAgentTool(
 				executed: false,
 				llmDecision: `system-policy -> BLOCKED: ${rate.reason}`,
 			});
-			return rate.reason;
+			return { refusal: rate.reason };
 		}
 	}
 	const minor = moneyMinorOf(toolName, args);
@@ -161,10 +161,14 @@ function guardAgentTool(
 			executed: false,
 			llmDecision: "system-policy -> BLOCKED: unparseable amount (fail-closed)",
 		});
-		return "BLOCKED: unparseable amount for a money action (fail-closed)";
+		return {
+			refusal: "BLOCKED: unparseable amount for a money action (fail-closed)",
+		};
 	}
 	const decision = enforceActionPolicy(toolName, minor, { targetRef: ref });
-	return decision.allowed ? null : decision.reason;
+	return decision.allowed
+		? { refusal: null, logId: decision.logId }
+		: { refusal: decision.reason };
 }
 
 export async function runAgentTurn(
@@ -217,12 +221,12 @@ export async function runAgentTurn(
 				? tool.parameters.parse(args)
 				: args;
 			// H-1 choke point: guardrails BEFORE execution, exactly as README claims.
-			const refusal = guardAgentTool(
+			const guard = guardAgentTool(
 				name,
 				(validated ?? {}) as Record<string, unknown>,
 			);
-			if (refusal) {
-				response = { blocked: true, error: refusal };
+			if (guard.refusal) {
+				response = { blocked: true, error: guard.refusal };
 				ok = false;
 			} else {
 				response = await tool.execute(validated, {
@@ -237,10 +241,7 @@ export async function runAgentTurn(
 						/* keep raw string */
 					}
 				}
-				markAgentActionExecuted(
-					name,
-					targetRefOf((validated ?? {}) as Record<string, unknown>),
-				);
+				markAgentActionExecutedById(guard.logId ?? 0);
 			}
 		} catch (e) {
 			ok = false;

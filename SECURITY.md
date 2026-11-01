@@ -35,6 +35,11 @@ Approval flow: action requested → stored with `executed = 0` → human flips t
 > **H-6 (2026-11-01):** `executed=1` means *the tool really ran*. A BLOCKED
 > decision stays `executed=0` forever — no code path may flip it (the
 > `recordExternalPayment` blocked branch did; pinned by `tests/blocked-not-executed.test.ts`).
+> **H-7 (2026-11-01):** the audit is **one row per decision+attempt** (no wrapper
+> double-logs the policy) and flips are **identity-based**: `logAgentAction` returns
+> the row id and `markAgentActionExecutedById(id)` touches ONLY that row — the old
+> "newest not-executed per action" selection raced under concurrency (pinned by
+> `tests/audit-identity.test.ts`).
 
 - Every agent decision is written to `agent_actions` **before** execution:
   `action`, `llm_decision` (raw model output), `limit_check` (`PASS`/`BLOCKED`), `target_ref`, `executed`, timestamps.

@@ -3,7 +3,7 @@
  * All calls go through the guardrail whitelist in src/paypal.ts.
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { logAgentAction, markAgentActionExecuted } from "./auditlog.ts";
+import { logAgentAction, markAgentActionExecutedById } from "./auditlog.ts";
 import { enforceActionPolicy } from "./guards.ts";
 import type { ToolkitTools } from "./paypal.ts";
 
@@ -40,13 +40,7 @@ export async function createDraftInvoice(
 		targetRef: input.itemName,
 	});
 
-	logAgentAction({
-		action: "create_invoice",
-		limitCheck: gate.limitCheck,
-		targetRef: input.itemName,
-		executed: false,
-		llmDecision: `system-policy(createDraftInvoice): ${gate.reason}`,
-	});
+	// H-7: enforceActionPolicy already logged THIS decision — no second row.
 	if (!gate.allowed) {
 		throw new Error(`BLOCKED by guard: ${gate.reason}`);
 	}
@@ -100,7 +94,7 @@ export async function createDraftInvoice(
 		{ invoice_id: invoiceId },
 		{ toolCallId: "get-created-invoice", messages: [] },
 	);
-	markAgentActionExecuted("create_invoice", input.itemName);
+	markAgentActionExecutedById(gate.logId ?? 0);
 	return (typeof full === "string" ? JSON.parse(full) : full) as InvoiceResult;
 }
 
@@ -115,7 +109,7 @@ export async function sendInvoice(
 		}
 	).execute;
 
-	logAgentAction({
+	const sendLogId = logAgentAction({
 		action: "send_invoice",
 		limitCheck: "PASS",
 		targetRef: invoiceId,
@@ -133,7 +127,7 @@ export async function sendInvoice(
 	);
 
 	const parsed = parseToolResult(result);
-	markAgentActionExecuted("send_invoice", invoiceId);
+	markAgentActionExecutedById(sendLogId);
 	return parsed;
 }
 
@@ -227,13 +221,7 @@ export async function recordExternalPayment(
 		// ran"; flipping a blocked row falsifies the audit log, Rule 3).
 		throw new Error(`BLOCKED by guard: ${recGate.reason}`);
 	}
-	logAgentAction({
-		action: "record_payment_for_invoice",
-		limitCheck: "PASS",
-		targetRef: invoiceId,
-		executed: false,
-		llmDecision: "direct-call:recordExternalPayment",
-	});
+	// H-7: the policy row above IS this attempt's row — no duplicate PASS log.
 	const result = await execute(
 		{
 			invoice_id: invoiceId,
@@ -244,7 +232,7 @@ export async function recordExternalPayment(
 		},
 		{ toolCallId: "record-external-payment", messages: [] },
 	);
-	markAgentActionExecuted("record_payment_for_invoice", invoiceId);
+	markAgentActionExecutedById(recGate.logId ?? 0);
 	return parseToolResult(result);
 }
 
@@ -270,7 +258,7 @@ export async function sendInvoiceReminder(
 			execute: (a: unknown, o: unknown) => Promise<unknown>;
 		}
 	).execute;
-	logAgentAction({
+	const remindLogId = logAgentAction({
 		action: "send_invoice_reminder",
 		limitCheck: "PASS",
 		targetRef: invoiceId,
@@ -289,6 +277,6 @@ export async function sendInvoiceReminder(
 	writeFileSync(REMINDER_LEDGER, JSON.stringify(ledger, null, 2));
 
 	const parsed = parseToolResult(result);
-	markAgentActionExecuted("send_invoice_reminder", invoiceId);
+	markAgentActionExecutedById(remindLogId);
 	return parsed;
 }

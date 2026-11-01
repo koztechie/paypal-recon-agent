@@ -23,6 +23,8 @@ export interface PolicyDecision {
 	allowed: boolean;
 	limitCheck: "PASS" | "BLOCKED";
 	reason: string;
+	/** H-7: id of THIS decision's audit row (flip it after real execution). */
+	logId?: number;
 }
 
 export function enforceActionPolicy(
@@ -60,21 +62,21 @@ export function enforceActionPolicy(
 		};
 	}
 
-	logAgentAction({
+	const logId = logAgentAction({
 		action,
 		limitCheck: decision.limitCheck,
 		targetRef: opts.targetRef,
-		executed: false, // caller flips it via markAgentActionExecuted after real execution
+		executed: false, // caller flips THIS row (by id) after real execution (H-7)
 		llmDecision: opts.llmDecision
 			? `${opts.llmDecision} -> ${decision.limitCheck}: ${decision.reason}`
 			: `system-policy -> ${decision.limitCheck}: ${decision.reason}`,
 	});
-	return decision;
+	return { ...decision, logId };
 }
 
 /**
  * Runs a money action only when the policy allows it; throws otherwise.
- * On success the caller should call markAgentActionExecuted(action).
+ * On success the caller should call markAgentActionExecutedById(decision.logId).
  */
 export async function guardedMoneyAction<T>(
 	action: string,
