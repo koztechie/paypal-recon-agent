@@ -35,3 +35,18 @@ after writing (count=22, no empty required, rating `"9"`). Long texts = the stag
 File uploads (`prepare_file_upload`) and actual `submit_project` → stages152/153.
 
 **Stage150 DONE:19/19 required +3/3 optional prepared,0 empty, all option values valid.**
+
+## CORRECTION (2026-11-02): APIMatic removed from the answers — ADR-023
+The original pack listed sponsors as `AG Grid + APIMatic + Render` and claimed the
+APIMatic Context Plugin "was used during development". Challenged by the user, the
+records were re-audited:
+- **Install: real** (stage39 evidence: `~/.context-plugins/vscode/paypal`, registered
+  in VS Code settings, `2026-10-28T06:33:27Z`);
+- **Consultation during the build: no evidence anywhere** (zero mentions after stage39
+  in evidence/PROGRESS/README; the plugin targets VS Code while the build ran in a
+  different agent environment) → **usage claim FALSE**.
+Corrections applied: `SUBMISSION-custom-answers.json` → sponsors `["AG Grid","Render"]`,
+field **28793 left empty** («If you used…» = conditional + optional), the APIMatic
+sentence removed from **29053**; the pack now instructs **two tracks** (AG Grid + Render)
+and the152 instruction was corrected to tick **only those two**. Full rationale: ADR-023.
+The stage39 install fact remains recorded (it is true) — it just never became usage.
